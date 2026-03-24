@@ -1,0 +1,1329 @@
+<% if session[:access_token] %>
+  <div class="flex flex-col min-h-screen">
+
+    <main class="w-full max-w-[1700px] mx-auto flex-1 px-6 sm:px-10 lg:px-16 py-8">
+
+      <!-- Hero Header & Stats Row -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+          <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Your Dashboard</h2>
+          <p class="text-slate-500 text-base">Here's what's on your plate today.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 min-w-[130px]">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tonight</p>
+            <p class="text-2xl font-extrabold text-indigo-600"><%= @tonight_summary&.dig(:assignment_count) || 0 %></p>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">assignment<%= @tonight_summary&.dig(:assignment_count) == 1 ? "" : "s" %></p>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 min-w-[130px]">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Next 7 Days</p>
+            <p class="text-2xl font-extrabold text-sky-600"><%= @weekly_preview&.dig(:total_assignments) || 0 %></p>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">
+              <% if @weekly_preview&.dig(:busiest_day) %>
+                Busiest: <%= @weekly_preview[:busiest_day].strftime('%A') %>
+              <% else %>
+                Empty week 🎉
+              <% end %>
+            </p>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 min-w-[130px]">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Active Classes</p>
+            <p class="text-2xl font-extrabold text-emerald-600"><%= @courses&.count || 0 %></p>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">from Classroom</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Layout -->
+      <div class="space-y-8">
+
+        <!-- Streak tracker -->
+        <% if @streak && (@streak[:count].to_i > 0) %>
+          <div class="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-3">
+            <span class="text-2xl leading-none select-none">🔥</span>
+            <div>
+              <% if @streak[:active] %>
+                <p class="text-sm font-extrabold text-orange-900"><%= @streak[:count] %> day streak — starting assignments early</p>
+                <p class="text-xs text-orange-600 mt-0.5">Keep it going tonight to extend the streak</p>
+              <% else %>
+                <p class="text-sm font-extrabold text-slate-700">Streak lost — get it back tonight</p>
+                <p class="text-xs text-slate-500 mt-0.5">Your last streak was <%= @streak[:count] %> day<%= @streak[:count] == 1 ? "" : "s" %></p>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Danger zone banners -->
+        <% if @danger_zone&.any? %>
+          <div class="space-y-2">
+            <% @danger_zone.each do |a| %>
+              <%
+                due_obj = Date.parse(a[:due_date]) rescue nil
+                dz_days = due_obj ? (due_obj - Date.current).to_i : nil
+              %>
+              <div class="flex items-start gap-4 bg-rose-50 border border-rose-300 rounded-2xl px-5 py-4 relative"
+                   id="dz-<%= a[:course_work_id] %>">
+                <div class="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg class="w-5 h-5 text-rose-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-extrabold text-rose-900 truncate"><%= a[:title] %></p>
+                  <p class="text-xs font-semibold text-rose-700 mt-0.5">
+                    <% if dz_days == 0 %>Due today<% elsif dz_days == 1 %>Due tomorrow<% else %>Due in <%= dz_days %> days<% end %>
+                    &middot; <%= format_minutes(a[:estimated_minutes]) %> &middot; <%= a[:class_name] || a[:course] %>
+                  </p>
+                  <p class="text-xs text-rose-600 mt-1">
+                    Start tonight and it's easy. Wait till tomorrow and it's a crunch.
+                  </p>
+                </div>
+                <button onclick="document.getElementById('dz-<%= a[:course_work_id] %>').remove()"
+                        class="text-rose-400 hover:text-rose-700 transition flex-shrink-0 mt-0.5 rounded-lg p-0.5 focus:outline-none"
+                        aria-label="Dismiss">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Calibration nudge banners -->
+        <% if @calibration_nudges&.any? %>
+          <div class="space-y-3">
+            <% @calibration_nudges.each do |nudge| %>
+              <div class="flex items-start gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 relative"
+                   id="nudge-<%= nudge[:course].parameterize %>">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-amber-900">
+                    <%= nudge[:course] %> assignments usually take <%= nudge[:factor] %>× longer than estimated.
+                  </p>
+                  <p class="text-xs text-amber-700 mt-0.5">
+                    Even with the maximum adjustment applied, estimates are still off. Consider setting a manual estimate on individual assignments, or adjusting your study time in
+                    <a href="<%= settings_path %>" class="font-semibold underline underline-offset-2 hover:text-amber-900 transition">Preferences</a>.
+                  </p>
+                </div>
+                <button onclick="document.getElementById('nudge-<%= nudge[:course].parameterize %>').remove()"
+                        class="text-amber-400 hover:text-amber-700 transition flex-shrink-0 mt-0.5 rounded-lg p-0.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        aria-label="Dismiss">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Section 1: Tonight's Plan -->
+        <section class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl shadow-xl border border-indigo-800/50 overflow-hidden relative">
+          <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+            <svg class="w-48 h-48 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+
+          <!-- Plan header -->
+          <div class="px-6 sm:px-8 py-6 border-b border-indigo-800/30 relative z-10">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 class="text-2xl font-bold text-white flex items-center gap-3">
+                  <svg class="w-7 h-7 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Tonight's Plan
+                </h3>
+                <p class="text-indigo-300 text-sm mt-1">Ranked by urgency, effort, and blocked time from your calendar and activities.</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <% if @tonight_summary %>
+                  <span class="bg-white/10 border border-white/15 text-indigo-100 text-xs font-bold px-3 py-1.5 rounded-full">
+                    Workload: <%= format_minutes(@tonight_summary[:total_minutes]) %>
+                  </span>
+                  <span class="bg-violet-500/20 border border-violet-500/30 text-violet-200 text-xs font-bold px-3 py-1.5 rounded-full">
+                    Free: <%= format_minutes(@tonight_summary[:total_free_minutes]) %>
+                  </span>
+                  <span class="bg-<%= @tonight_summary[:fits] ? 'emerald' : 'rose' %>-500/20 border border-<%= @tonight_summary[:fits] ? 'emerald' : 'rose' %>-500/30 text-<%= @tonight_summary[:fits] ? 'emerald' : 'rose' %>-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase">
+                    <%= @tonight_summary[:fits] ? "Fits Tonight" : "Won't Fully Fit" %>
+                  </span>
+                  <% if @tonight_summary[:busiest_task].present? %>
+                    <span class="bg-amber-400/20 border border-amber-400/30 text-amber-200 text-xs font-bold px-3 py-1.5 rounded-full">
+                      Biggest: <%= @tonight_summary[:busiest_task][:title].to_s.truncate(24) %> (<%= format_minutes(@tonight_summary[:busiest_task][:minutes]) %>)
+                    </span>
+                  <% end %>
+                <% end %>
+              </div>
+            </div>
+
+            <!-- Priority legend -->
+            <div class="flex flex-wrap gap-4 mt-4 text-xs font-semibold text-white/50">
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0"></span>Urgent — due within 1 day or overdue</span>
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>Needs Focus — due in 2 days, hard subject, or 60+ min</span>
+              <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>Can Wait — everything else</span>
+            </div>
+          </div>
+
+          <div class="relative z-10 p-4 sm:p-6 space-y-4">
+            <%
+              today_str    = Date.current.to_s
+              tonight_plan = @schedule[today_str]
+              urgent       = tonight_plan[:urgent]
+              needs_focus  = tonight_plan[:needs_focus]
+              can_wait     = tonight_plan[:can_wait]
+            %>
+
+            <% if tonight_plan && tonight_plan[:assignments].any? %>
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                <%# ── Urgent ── %>
+                <% if urgent.any? %>
+                  <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-2 h-2 rounded-full bg-rose-400 animate-pulse flex-shrink-0"></div>
+                      <h4 class="text-xs font-bold uppercase tracking-widest text-rose-300">Do First — Urgent</h4>
+                      <span class="ml-auto text-[10px] font-bold text-rose-300/60"><%= urgent.size %> task<%= urgent.size == 1 ? "" : "s" %></span>
+                    </div>
+                    <div class="space-y-2">
+                      <% urgent.each do |a| %>
+                        <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-rose-300", accent_border: "border-rose-500/20", due_text: "text-rose-200", danger_zone_ids: @danger_zone_ids } %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
+                <%# ── Needs Focus ── %>
+                <% if needs_focus.any? %>
+                  <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></div>
+                      <h4 class="text-xs font-bold uppercase tracking-widest text-amber-300">Needs Focus</h4>
+                      <span class="ml-auto text-[10px] font-bold text-amber-300/60"><%= needs_focus.size %> task<%= needs_focus.size == 1 ? "" : "s" %></span>
+                    </div>
+                    <div class="space-y-2">
+                      <% needs_focus.each do |a| %>
+                        <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-amber-300", accent_border: "border-amber-500/20", due_text: "text-amber-200", danger_zone_ids: @danger_zone_ids } %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
+                <%# ── Can Wait ── %>
+                <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-emerald-300">Can Wait</h4>
+                    <span class="ml-auto text-[10px] font-bold text-emerald-300/60"><%= can_wait.size %> task<%= can_wait.size == 1 ? "" : "s" %></span>
+                  </div>
+                  <% if can_wait.any? %>
+                    <div class="space-y-2">
+                      <% can_wait.each do |a| %>
+                        <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-emerald-300", accent_border: "border-emerald-500/20", due_text: "text-emerald-200", danger_zone_ids: @danger_zone_ids } %>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <div class="rounded-xl border border-emerald-500/15 bg-black/10 px-3 py-4 text-center">
+                      <p class="text-sm font-semibold text-white/80">Nothing in this bucket.</p>
+                      <p class="text-xs text-emerald-200/70 mt-1">Everything scheduled tonight needs attention sooner.</p>
+                    </div>
+                  <% end %>
+                </div>
+
+              </div>
+
+            <% else %>
+              <div class="p-16 text-center">
+                <div class="bg-indigo-500/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-indigo-500/30">
+                  <svg class="w-12 h-12 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h4 class="text-white font-extrabold mb-2 text-2xl tracking-tight">You're clear for tonight!</h4>
+                <p class="text-indigo-200 text-lg">No assignments scheduled for today. Enjoy your downtime.</p>
+              </div>
+            <% end %>
+
+            <%# ── Won't Fit Tonight / Later warning ── %>
+            <% if @schedule["wont_fit_tonight"]&.any? %>
+              <div class="rounded-2xl border border-rose-500/40 bg-rose-900/20 p-4">
+                <div class="flex items-center gap-2 mb-3">
+                  <svg class="w-4 h-4 text-rose-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <h4 class="text-xs font-bold uppercase tracking-widest text-rose-300">Won't Fit Tonight</h4>
+                  <span class="ml-auto text-[10px] font-bold text-rose-300/60"><%= @schedule["wont_fit_tonight"].size %> item<%= @schedule["wont_fit_tonight"].size == 1 ? "" : "s" %></span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <% @schedule["wont_fit_tonight"].each do |task| %>
+                    <div class="bg-black/20 rounded-xl p-3 border border-rose-500/20 flex flex-col gap-1.5">
+                      <div class="flex items-start justify-between gap-2">
+                        <p class="text-sm font-bold text-white truncate"><%= task[:title] %></p>
+                        <span class="text-[10px] font-bold text-rose-300 whitespace-nowrap"><%= format_minutes(task[:minutes]) %></span>
+                      </div>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[10px] font-bold uppercase text-white/50 truncate"><%= task[:course] %></span>
+                        <span class="text-[10px] font-bold text-rose-400 border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">Due <%= Date.parse(task[:due_date]).strftime("%b %-d") %></span>
+                      </div>
+                      <p class="text-[11px] text-rose-100/80">
+                        <%= task[:reason] %>
+                        <% if task[:first_scheduled_date].present? %>
+                          · first scheduled <%= Date.parse(task[:first_scheduled_date]).strftime("%a") %>
+                        <% end %>
+                      </p>
+                      <% if task[:shortfall_minutes].to_i > 0 %>
+                        <p class="text-[10px] font-bold text-rose-300"><%= format_minutes(task[:shortfall_minutes]) %> still has no slot before the due date.</p>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+        <!-- Section 2: Weekly Workload -->
+        <% if @schedule.except("busiest_day", "wont_fit").any? { |_, day| day[:assignments].any? } %>
+        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50 flex-wrap">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-violet-100 rounded-lg">
+                <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-slate-900 tracking-tight">Weekly Workload</h3>
+                <p class="text-xs text-slate-500 font-medium">Next 7 days — nightly scheduled time</p>
+              </div>
+            </div>
+            <% if @schedule["busiest_day"] %>
+              <span class="inline-flex items-center gap-2 text-sm font-bold text-violet-700 bg-violet-50 border border-violet-100 px-4 py-1.5 rounded-full">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Busiest: <%= Date.parse(@schedule["busiest_day"]).strftime("%A, %b %-d") %>
+              </span>
+            <% end %>
+          </div>
+
+          <div class="p-5">
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+              <% (0..6).each do |offset| %>
+                <%
+                  date = Date.current + offset
+                  date_str = date.to_s
+                  day_data = @schedule[date_str]
+
+                  is_today   = date == Date.current
+                  is_busiest = @schedule["busiest_day"] == date_str
+                  assignment_count = day_data[:assignments].size
+                  total_minutes    = day_data[:total_minutes]
+
+                  label = if total_minutes > 90 then "Heavy"
+                  elsif total_minutes > 45 then "Medium"
+                  elsif total_minutes > 0 then "Light"
+                  else nil end
+
+                  bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
+                  bar_color  = label == "Heavy" ? "bg-rose-400" : (label == "Medium" ? "bg-amber-400" : "bg-emerald-400")
+                  label_color = label == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (label == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "text-emerald-600 bg-emerald-50 border-emerald-100")
+                  card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60" : "bg-slate-50 hover:bg-slate-100"
+                %>
+
+                <div class="<%= card_class %> rounded-2xl p-3.5 border border-slate-200 transition flex flex-col gap-2 relative">
+                  <% if is_busiest %>
+                    <span class="absolute top-2 right-2 text-[9px] font-extrabold uppercase tracking-widest text-violet-500">Busiest</span>
+                  <% end %>
+                  <% if is_today %>
+                    <span class="absolute top-2 left-2 text-[9px] font-extrabold uppercase tracking-widest text-indigo-500">Today</span>
+                  <% end %>
+
+                  <div class="<%= is_today || is_busiest ? 'pt-3' : '' %>">
+                    <p class="text-sm font-extrabold text-slate-800"><%= date.strftime("%A") %></p>
+                    <p class="text-xs text-slate-500 font-medium"><%= date.strftime("%b %-d") %></p>
+                  </div>
+
+                  <% if assignment_count > 0 %>
+                    <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div class="<%= bar_color %> h-full rounded-full transition-all" style="width: <%= bar_pct %>%"></div>
+                    </div>
+                    <div class="flex flex-wrap items-end justify-between gap-1">
+                      <div class="min-w-0">
+                        <p class="text-lg font-extrabold text-slate-900"><%= format_minutes(total_minutes) %></p>
+                        <p class="text-[11px] text-slate-500"><%= assignment_count %> assignment<%= assignment_count == 1 ? "" : "s" %></p>
+                      </div>
+                      <% if label %>
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded border <%= label_color %>"><%= label %></span>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <div class="flex items-center gap-1.5 text-slate-400 mt-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                      <p class="text-sm font-medium">Free</p>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </section>
+        <% end %>
+
+        <!-- Section: Tonight's Timeline -->
+        <%
+          _tonight_tl   = @schedule[Date.current.to_s]
+          _timeline     = _tonight_tl[:timeline]
+          _available    = @tonight_summary[:tonight_capacity].to_i
+          _needed       = @tonight_summary[:total_minutes].to_i
+          _overflow     = @schedule["wont_fit"]&.any?
+        %>
+        <% if _timeline.any? %>
+        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+
+          <!-- Header -->
+          <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-indigo-100 rounded-lg flex-shrink-0">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 tracking-tight">Tonight's Timeline</h3>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="hidden sm:flex flex-wrap gap-2.5 text-[11px] font-semibold text-slate-400">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>Urgent</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Focus</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Later</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Break</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400 inline-block"></span>Cal</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Activity</span>
+              </div>
+              <button id="timeline-toggle" onclick="(function(){ var body = document.getElementById('timeline-body'); var btn = document.getElementById('timeline-toggle'); var collapsed = body.style.display === 'none'; body.style.display = collapsed ? '' : 'none'; btn.textContent = collapsed ? '▲ Collapse' : '▼ Expand'; })()" class="text-xs font-bold text-slate-400 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition whitespace-nowrap">▲ Collapse</button>
+            </div>
+          </div>
+
+          <!-- Summary card -->
+          <div class="px-6 pt-4 pb-0">
+            <div class="rounded-2xl border <%= _overflow ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50' %> px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-wrap gap-4 text-sm">
+                <span class="text-slate-600"><span class="font-bold text-slate-900"><%= @tonight_summary[:assignment_count] %></span> assignment<%= @tonight_summary[:assignment_count] == 1 ? "" : "s" %></span>
+                <span class="text-slate-600"><span class="font-bold text-slate-900">~<%= format_minutes(_needed) %></span> of work</span>
+                <span class="text-slate-600"><span class="font-bold text-slate-900"><%= format_minutes(@tonight_summary[:total_free_minutes]) %></span> free remaining</span>
+              </div>
+              <% if _overflow %>
+                <p class="text-sm font-bold text-rose-600">Tight night — focus on what's urgent.</p>
+              <% elsif _available > 0 && _needed.to_f / _available < 0.6 %>
+                <p class="text-sm font-bold text-emerald-600">You've got plenty of time. Let's go!</p>
+              <% else %>
+                <p class="text-sm font-bold text-indigo-600">Solid night ahead. You've got this.</p>
+              <% end %>
+            </div>
+
+            <!-- Overload warning -->
+            <% if _overflow %>
+              <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <div>
+                  <p class="text-sm font-bold text-amber-800">You have more work than time tonight.</p>
+                  <p class="text-xs text-amber-700 mt-0.5">The timeline below shows only what fits. The rest is spread to future nights — check the weekly view or the "Won't Fit" section above.</p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- Condensed timeline rows -->
+          <div id="timeline-body" class="px-6 py-4">
+            <div class="divide-y divide-slate-100">
+              <% _timeline.each do |block| %>
+                <%
+                  duration = block[:end_m] - block[:start_m]
+                  time_range = "#{minutes_to_time(block[:start_m])} – #{minutes_to_time(block[:end_m])}"
+                  case block[:type]
+                  when "study"
+                    case block[:priority]
+                    when "urgent"   then dot = "bg-rose-500";    row_text = "text-slate-800"; sub_text = "text-rose-500"
+                    when "needs_focus" then dot = "bg-amber-500"; row_text = "text-slate-800"; sub_text = "text-amber-600"
+                    else                 dot = "bg-emerald-500"; row_text = "text-slate-800"; sub_text = "text-emerald-600"
+                    end
+                    icon = "📚"; label = block[:label].to_s.truncate(60); sub = block[:course].to_s
+                  when "quick_tasks"
+                    case block[:priority]
+                    when "urgent"   then dot = "bg-rose-500"; row_text = "text-slate-800"; sub_text = "text-rose-500"
+                    when "needs_focus" then dot = "bg-amber-500"; row_text = "text-slate-800"; sub_text = "text-amber-600"
+                    else                 dot = "bg-indigo-500"; row_text = "text-slate-800"; sub_text = "text-indigo-500"
+                    end
+                    icon = "⚡"; label = block[:label].to_s; sub = "Expand to view"
+                  when "break"
+                    dot = "bg-slate-300"; row_text = "text-slate-400"; sub_text = "text-slate-400"
+                    icon = "☕"; label = "Break"; sub = nil
+                  when "extracurricular"
+                    dot = "bg-purple-500"; row_text = "text-slate-800"; sub_text = "text-purple-500"
+                    icon = "⚡"; label = block[:label].to_s; sub = "Activity"
+                  when "calendar"
+                    dot = "bg-sky-500"; row_text = "text-slate-800"; sub_text = "text-sky-500"
+                    icon = "🗓"; label = block[:label].to_s; sub = "Calendar"
+                  end
+                %>
+                <div class="flex items-center gap-3 py-2 group">
+                  <!-- Time range -->
+                  <span class="text-[11px] font-mono text-slate-400 w-36 flex-shrink-0 tabular-nums"><%= time_range %></span>
+                  <!-- Dot -->
+                  <span class="w-2.5 h-2.5 rounded-full <%= dot %> flex-shrink-0 ring-2 ring-white shadow-sm"></span>
+                  <!-- Label -->
+                  <% if block[:type] == "quick_tasks" %>
+                    <details class="flex-1 group/details">
+                      <summary class="list-none cursor-pointer">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <span class="text-sm font-semibold <%= row_text %> truncate flex-1"><%= label %></span>
+                          <% if sub.present? %>
+                            <span class="text-[11px] font-medium <%= sub_text %> hidden sm:block flex-shrink-0"> <%= sub %></span>
+                          <% end %>
+                          <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(duration) %></span>
+                        </div>
+                      </summary>
+                      <div class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <div class="space-y-1.5">
+                          <% Array(block[:items]).each do |item| %>
+                            <div class="flex items-center justify-between gap-3 text-xs">
+                              <div class="min-w-0">
+                                <% if item[:link].present? %>
+                                  <a href="<%= item[:link] %>" target="_blank" rel="noopener" class="font-semibold text-slate-700 hover:text-indigo-600 transition-colors truncate block"><%= item[:title] %></a>
+                                <% else %>
+                                  <span class="font-semibold text-slate-700 truncate block"><%= item[:title] %></span>
+                                <% end %>
+                                <span class="text-slate-500"><%= item[:course] %></span>
+                              </div>
+                              <span class="font-bold text-slate-500 whitespace-nowrap"><%= format_minutes(item[:minutes]) %></span>
+                            </div>
+                          <% end %>
+                        </div>
+                      </div>
+                    </details>
+                  <% elsif block[:type] == "study" && block[:link].present? %>
+                    <a href="<%= block[:link] %>" target="_blank" rel="noopener" class="text-sm font-semibold <%= row_text %> truncate flex-1 hover:text-indigo-600 transition-colors"><%= label %></a>
+                  <% else %>
+                    <span class="text-sm font-semibold <%= row_text %> truncate flex-1"><%= label %></span>
+                  <% end %>
+                  <!-- Sub-label (course / type) -->
+                  <% if sub.present? && block[:type] != "quick_tasks" %>
+                    <span class="text-[11px] font-medium <%= sub_text %> hidden sm:block flex-shrink-0 truncate max-w-[8rem]"><%= sub %></span>
+                  <% end %>
+                  <!-- Duration -->
+                  <% unless block[:type] == "quick_tasks" %>
+                    <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(duration) %></span>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <!-- End marker -->
+              <div class="flex items-center gap-3 py-2">
+                <span class="text-[11px] font-mono text-slate-300 w-36 flex-shrink-0"><%= minutes_to_time(_timeline.last[:end_m]) %></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-200 flex-shrink-0 ring-2 ring-white"></span>
+                <span class="text-sm font-medium text-slate-300 italic">Done for tonight</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <% end %>
+
+        <!-- Homework Timer -->
+        <% if @tonight_assignments.present? %>
+        <section id="hw-timer-section" class="mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-8 py-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+            <div class="p-2 bg-violet-100 rounded-lg">
+              <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 tracking-tight">Study Timer</h3>
+              <p class="text-xs text-slate-500 font-medium mt-0.5">Track how long you spend on each assignment</p>
+            </div>
+          </div>
+          <div class="p-6 sm:p-8">
+            <!-- Assignment picker -->
+            <div class="mb-5">
+              <label for="timer-assignment-select" class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Choose an assignment</label>
+              <select id="timer-assignment-select"
+                class="w-full text-sm font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition appearance-none cursor-pointer">
+                <option value="" disabled selected>Select tonight's assignment…</option>
+                <% @tonight_assignments.each do |a| %>
+                  <option value="<%= a[:course_work_id] %>"
+                    data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
+                    data-course="<%= CGI.escapeHTML(a[:class_name].to_s) %>"
+                    data-estimated="<%= a[:minutes].to_i %>">
+                    <%= a[:title].to_s.truncate(60) %> — <%= a[:class_name] %>
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <!-- Timer display -->
+            <div class="bg-slate-50 rounded-2xl px-8 py-6 border border-slate-100">
+              <div class="flex flex-col items-center justify-center">
+                <div id="timer-display" class="text-5xl font-mono font-extrabold text-slate-900 tabular-nums tracking-tight">00:00</div>
+                <div id="timer-status-label" class="text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest">Ready</div>
+              </div>
+
+              <!-- Controls -->
+              <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <button id="timer-pause-btn"
+                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md shadow-amber-200 transition-all active:scale-95 hidden">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                  Pause
+                </button>
+                <button id="timer-stop-btn"
+                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-md shadow-rose-200 transition-all active:scale-95 hidden">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                  Done — Save
+                </button>
+              </div>
+            </div>
+
+            <!-- Result card (shown after stop) -->
+            <div id="timer-result" class="hidden mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <div class="flex-1">
+                <p id="timer-result-text" class="text-sm font-semibold text-emerald-800"></p>
+                <p id="timer-result-sub" class="text-xs text-emerald-600 mt-0.5"></p>
+              </div>
+              <button id="timer-reset-btn" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition">Time another</button>
+            </div>
+          </div>
+        </section>
+        <% end %>
+
+<script>
+(function() {
+  const select    = document.getElementById('timer-assignment-select');
+  const display   = document.getElementById('timer-display');
+  const statusLbl = document.getElementById('timer-status-label');
+  const pauseBtn  = document.getElementById('timer-pause-btn');
+  const stopBtn   = document.getElementById('timer-stop-btn');
+  const resultDiv = document.getElementById('timer-result');
+  const resultTxt = document.getElementById('timer-result-text');
+  const resultSub = document.getElementById('timer-result-sub');
+  const resetBtn  = document.getElementById('timer-reset-btn');
+
+  if (!select) return;
+
+  let sessionId    = null;
+  let elapsed      = 0;   // seconds
+  let intervalId   = null;
+  let running      = false;
+  let startedAt    = null; // wall-clock ms when last "start/resume" pressed
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function updateDisplay() {
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    display.textContent = pad(m) + ':' + pad(s);
+  }
+
+  function tick() {
+    elapsed = Math.floor((Date.now() - startedAt) / 1000) + (elapsed - (running ? Math.floor((Date.now() - startedAt) / 1000) : 0));
+    // simpler: track a baseElapsed separately
+  }
+
+  // Re-implement cleanly with baseElapsed
+  let baseElapsed = 0; // seconds accumulated before last resume
+
+  function startTick() {
+    startedAt = Date.now();
+    intervalId = setInterval(() => {
+      elapsed = baseElapsed + Math.floor((Date.now() - startedAt) / 1000);
+      updateDisplay();
+    }, 500);
+  }
+
+  function stopTick() {
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    baseElapsed = elapsed;
+  }
+
+  async function beginSessionForSelectedAssignment() {
+    const opt = select.options[select.selectedIndex];
+    if (!opt || !opt.value || running || sessionId) return;
+
+    const resp = await fetch('<%= study_sessions_path %>', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({
+        study_session: {
+          course_work_id:     opt.value,
+          assignment_title:   opt.dataset.title,
+          course_name:        opt.dataset.course,
+          estimated_minutes:  parseInt(opt.dataset.estimated) || null
+        }
+      })
+    });
+    if (!resp.ok) { alert('Could not start session. Please try again.'); return; }
+
+    const data = await resp.json();
+    sessionId = data.id;
+    running = true;
+    select.disabled = true;
+    pauseBtn.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+    statusLbl.textContent = 'Running';
+    statusLbl.className = 'text-xs font-semibold text-violet-500 mt-2 uppercase tracking-widest';
+    startTick();
+  }
+
+  select.addEventListener('change', () => {
+    beginSessionForSelectedAssignment();
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (!sessionId) return;
+
+    if (!running) {
+      running = true;
+      statusLbl.textContent = 'Running';
+      statusLbl.className = 'text-xs font-semibold text-violet-500 mt-2 uppercase tracking-widest';
+      pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
+      startTick();
+      return;
+    end
+
+    running = false;
+    stopTick();
+    statusLbl.textContent = 'Paused';
+    statusLbl.className = 'text-xs font-semibold text-amber-500 mt-2 uppercase tracking-widest';
+    pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg> Resume';
+  });
+
+  stopBtn.addEventListener('click', async () => {
+    stopTick();
+    running = false;
+
+    const actualMinutes = Math.max(1, Math.round(elapsed / 60));
+    const opt = select.options[select.selectedIndex];
+    const estimated = parseInt(opt?.dataset.estimated) || 0;
+
+    pauseBtn.classList.add('hidden');
+    stopBtn.classList.add('hidden');
+    statusLbl.textContent = 'Saving…';
+    statusLbl.className = 'text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest';
+
+    if (sessionId) {
+      try {
+        await fetch('/study_sessions/' + sessionId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ study_session: { actual_minutes: actualMinutes } })
+        });
+      } catch(e) { /* best-effort */ }
+    }
+
+    // Show result
+    const mm = Math.floor(elapsed / 60);
+    const ss = elapsed % 60;
+    const timeStr = mm > 0 ? mm + 'm ' + ss + 's' : ss + 's';
+    resultTxt.textContent = 'Saved! You spent ' + timeStr + ' on "' + (opt?.dataset.title || 'this assignment') + '".';
+    if (estimated > 0) {
+      const diff = actualMinutes - estimated;
+      if (diff > 2)       resultSub.textContent = 'Took ' + diff + ' min longer than estimated (' + estimated + ' min). We\'ll adjust future estimates.';
+      else if (diff < -2) resultSub.textContent = 'Finished ' + Math.abs(diff) + ' min faster than estimated — nice work!';
+      else                resultSub.textContent = 'Right on estimate (' + estimated + ' min). Great planning!';
+    } else {
+      resultSub.textContent = '';
+    }
+    resultDiv.classList.remove('hidden');
+    statusLbl.textContent = 'Done';
+    statusLbl.className = 'text-xs font-semibold text-emerald-500 mt-2 uppercase tracking-widest';
+  });
+
+  resetBtn.addEventListener('click', () => {
+    sessionId   = null;
+    elapsed     = 0;
+    baseElapsed = 0;
+    running     = false;
+    select.disabled = false;
+    select.value = '';
+    pauseBtn.classList.add('hidden');
+    pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
+    stopBtn.classList.add('hidden');
+    resultDiv.classList.add('hidden');
+    display.textContent = '00:00';
+    statusLbl.textContent = 'Ready';
+    statusLbl.className = 'text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest';
+    updateDisplay();
+  });
+})();
+</script>
+
+        <!-- Active Classes -->
+        <section class="mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-8 py-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+            <div class="p-2 bg-emerald-100 rounded-lg">
+              <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 tracking-tight">Active Classes</h3>
+          </div>
+          <div class="p-6 sm:p-8">
+            <% if @courses.present? %>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <% @courses.each_with_index do |course, index| %>
+                  <% colors = ['bg-indigo-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500', 'bg-sky-500', 'bg-purple-500'] %>
+                  <a href="<%= course.alternate_link %>" target="_blank" rel="noopener"
+                     class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex items-center gap-3 group">
+                    <div class="<%= colors[index % colors.length] %> rounded-xl w-10 h-10 flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+                      <%= course.name[0].upcase %>
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                      <h4 class="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors" title="<%= course.name %>"><%= course.name %></h4>
+                      <p class="text-xs font-medium text-slate-500 mt-0.5">Google Classroom ↗</p>
+                    </div>
+                  </a>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="border border-slate-200 border-dashed rounded-2xl p-8 text-center">
+                <p class="text-slate-500">No active classes synced.</p>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       PANIC PLAN OVERLAY (due today/overdue, not started, ≥30 min)
+  ═══════════════════════════════════════════════════════════ -->
+  <% panic = @danger_zone&.select { |a| (Date.parse(a[:due_date]) rescue nil)&.<=(Date.current) }&.first %>
+  <% if panic %>
+  <div id="panic-overlay"
+       class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+       style="font-family: inherit;"
+       data-assignment-id="<%= panic[:course_work_id] %>"
+       data-title="<%= CGI.escapeHTML(panic[:title].to_s) %>"
+       data-course="<%= CGI.escapeHTML(panic[:class_name].to_s) %>"
+       data-minutes="<%= panic[:estimated_minutes].to_i %>"
+       data-due="<%= panic[:due_date] %>">
+    <div class="bg-slate-900 border border-rose-500/40 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="text-4xl select-none mb-4">🚨</div>
+      <h2 class="text-xl font-extrabold text-white mb-1">Due tonight</h2>
+      <p class="text-sm font-bold text-rose-300 mb-1"><%= panic[:title].to_s.truncate(60) %></p>
+      <p class="text-xs text-slate-400 mb-6"><%= panic[:class_name] %> &middot; <%= format_minutes(panic[:estimated_minutes]) %> estimated &middot; not started</p>
+      <button id="panic-go-btn"
+              class="w-full py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base transition active:scale-95 mb-3">
+        ⚡ Let&rsquo;s go — start crunch now
+      </button>
+      <button id="panic-dismiss-btn"
+              class="w-full py-2.5 rounded-2xl text-slate-400 hover:text-white text-sm font-semibold transition">
+        Show dashboard instead
+      </button>
+    </div>
+  </div>
+  <% end %>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CRUNCH MODE OVERLAY
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="crunch-overlay" class="hidden fixed inset-0 z-50 bg-slate-950 flex flex-col" style="font-family: inherit;">
+
+    <!-- Top bar -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="text-xl select-none">&#9889;</span>
+        <div class="min-w-0">
+          <p id="crunch-title" class="text-base font-extrabold text-white truncate"></p>
+          <p id="crunch-course" class="text-xs font-semibold text-slate-400 truncate"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button id="crunch-share-btn" title="Share progress"
+                class="text-slate-400 hover:text-violet-300 transition p-2 rounded-xl hover:bg-white/10">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+        </button>
+        <button id="crunch-close" class="text-slate-400 hover:text-white transition p-2 rounded-xl hover:bg-white/10">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
+
+      <!-- Left: Micro-task list + progress -->
+      <div class="flex-1 overflow-y-auto p-6 lg:p-8 flex flex-col gap-6">
+
+        <!-- Progress bar -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span id="crunch-progress-label" class="text-xs font-bold text-slate-400 uppercase tracking-wide">Loading tasks&#8230;</span>
+            <span id="crunch-progress-pct" class="text-xs font-extrabold text-violet-400"></span>
+          </div>
+          <div class="h-2.5 bg-white/10 rounded-full overflow-hidden">
+            <div id="crunch-progress-bar" class="h-full bg-gradient-to-r from-violet-500 to-indigo-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Nudge message -->
+        <div id="crunch-nudge" class="hidden bg-violet-500/15 border border-violet-500/30 rounded-2xl px-5 py-3 text-sm font-bold text-violet-300 text-center"></div>
+
+        <!-- Task list container -->
+        <div id="crunch-task-list" class="space-y-2">
+          <div id="crunch-loading" class="flex flex-col items-center justify-center py-16 gap-4">
+            <div class="w-10 h-10 border-4 border-violet-400/30 border-t-violet-400 rounded-full animate-spin"></div>
+            <p class="text-slate-400 text-sm font-semibold">Breaking down your assignment&#8230;</p>
+          </div>
+        </div>
+
+        <!-- All done (briefly shown before reflection) -->
+        <div id="crunch-done" class="hidden text-center py-12">
+          <div class="text-5xl select-none mb-4">&#127881;</div>
+          <p class="text-2xl font-extrabold text-white">You did it! Fire.</p>
+          <p class="text-slate-400 text-sm mt-2">All tasks complete. Close crunch mode or keep grinding.</p>
+        </div>
+
+        <!-- Post-crunch reflection -->
+        <div id="crunch-reflection" class="hidden flex flex-col gap-5 py-6">
+          <div class="text-center">
+            <div class="text-4xl select-none mb-3">&#9989;</div>
+            <h2 class="text-xl font-extrabold text-white">Session recap</h2>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Time worked</p>
+              <p id="reflection-time" class="text-lg font-extrabold text-white"></p>
+            </div>
+            <div class="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks done</p>
+              <p id="reflection-tasks" class="text-lg font-extrabold text-white"></p>
+            </div>
+            <div class="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Finished at</p>
+              <p id="reflection-end-time" class="text-lg font-extrabold text-white"></p>
+            </div>
+          </div>
+          <p id="reflection-tip" class="text-sm text-slate-400 text-center leading-relaxed px-2"></p>
+          <button id="crunch-reflection-close"
+                  class="mt-2 w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-sm transition active:scale-95">
+            Done &#8594; back to dashboard
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Pomodoro timer -->
+      <div class="lg:w-72 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 p-6 flex flex-col gap-5">
+        <div class="flex items-center justify-between">
+          <span id="pomo-mode-label" class="text-xs font-extrabold uppercase tracking-widest text-violet-400">Work Sprint</span>
+          <span id="pomo-cycle-count" class="text-xs font-bold text-slate-500">Sprint 1</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <div id="pomo-display" class="text-6xl font-mono font-extrabold text-white tabular-nums tracking-tight leading-none">25:00</div>
+          <div class="mt-2 w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div id="pomo-progress-bar" class="h-full bg-violet-500 rounded-full transition-all duration-1000" style="width: 100%"></div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button id="pomo-start" class="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm transition active:scale-95">Start</button>
+          <button id="pomo-reset" class="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition active:scale-95">&#8635;</button>
+        </div>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Now working on</p>
+          <p id="pomo-current-task" class="text-xs font-semibold text-white/80 leading-snug">Select a task to begin</p>
+        </div>
+        <button id="pomo-skip-break" class="hidden text-xs font-bold text-slate-400 hover:text-white transition underline underline-offset-2 text-center">Skip break &#8594;</button>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function() {
+  const NUDGES = [
+    "you're cooking, keep going",
+    "that's actually good progress ngl",
+    "stack these W's",
+    "you're built different, keep it up",
+    "no cap you're crushing this",
+    "W behavior, keep it up",
+    "locked in, love to see it",
+    "productive era fr",
+    "main character energy rn"
+  ];
+  const CRUNCH_CACHE_VERSION = 'v2';
+  const LEGACY_CRUNCH_CACHE_PREFIX = 'crunch_tasks_';
+  let nudgeIndex = 0;
+  let tasks = [], activeId = null, crunchStartTime = null, crunchTitle = '', crunchCourse = '';
+
+  // Pomodoro state
+  const DEFAULT_WORK_SECS = 25 * 60, BREAK_SECS = 5 * 60;
+  let pomoRunning = false, pomoBreak = false;
+  let pomoRemain = DEFAULT_WORK_SECS, pomoTotal = DEFAULT_WORK_SECS;
+  let pomoInterval = null, pomoCycles = 1;
+
+  const overlay     = document.getElementById('crunch-overlay');
+  const closeBtn    = document.getElementById('crunch-close');
+  const titleEl     = document.getElementById('crunch-title');
+  const courseEl    = document.getElementById('crunch-course');
+  const progressBar = document.getElementById('crunch-progress-bar');
+  const progressLbl = document.getElementById('crunch-progress-label');
+  const progressPct = document.getElementById('crunch-progress-pct');
+  const nudgeEl     = document.getElementById('crunch-nudge');
+  const taskList    = document.getElementById('crunch-task-list');
+  const loadingEl   = document.getElementById('crunch-loading');
+  const doneEl      = document.getElementById('crunch-done');
+  const pomoDisplay = document.getElementById('pomo-display');
+  const pomoBar     = document.getElementById('pomo-progress-bar');
+  const pomoStart   = document.getElementById('pomo-start');
+  const pomoReset   = document.getElementById('pomo-reset');
+  const pomoMode    = document.getElementById('pomo-mode-label');
+  const pomoCycleEl = document.getElementById('pomo-cycle-count');
+  const pomoTask    = document.getElementById('pomo-current-task');
+  const pomoSkip    = document.getElementById('pomo-skip-break');
+  const csrf        = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  if (!overlay) return;
+
+  bustLegacyCrunchCachesOnce();
+
+  // Open on crunch button click
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.crunch-btn');
+    if (!btn) return;
+    openCrunch(btn.dataset.courseWorkId, btn.dataset.title, btn.dataset.course, btn.dataset.minutes, btn.dataset.due);
+  });
+
+  async function openCrunch(id, title, course, minutes, due) {
+    activeId = id;
+    crunchStartTime = Date.now();
+    crunchTitle = title;
+    crunchCourse = course;
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    titleEl.textContent  = title;
+    courseEl.textContent = course;
+
+    // Reset
+    loadingEl.style.display = '';
+    doneEl.classList.add('hidden');
+    nudgeEl.classList.add('hidden');
+    taskList.innerHTML = '';
+    taskList.appendChild(loadingEl);
+    tasks = [];
+    updateProgress();
+    resetPomo();
+
+    // Check localStorage cache
+    const cacheKey = crunchCacheKey(id);
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { tasks = JSON.parse(cached); renderTasks(); return; }
+    } catch(e) { localStorage.removeItem(cacheKey); }
+
+    // Fetch from server
+    try {
+      const qs = new URLSearchParams({ title, class_name: course, due_date: due || '' });
+      const resp = await fetch('/crunch/' + encodeURIComponent(id) + '/microtasks?' + qs, {
+        headers: { 'X-CSRF-Token': csrf, 'Accept': 'application/json' }
+      });
+      const data = await resp.json();
+      tasks = (data.microtasks || []).map(t => ({ task: t.task, minutes: t.minutes, done: false }));
+      localStorage.setItem(cacheKey, JSON.stringify(tasks));
+      renderTasks();
+    } catch(err) {
+      loadingEl.innerHTML = '<p class="text-slate-400 text-sm text-center py-12">Could not load tasks. Check your connection and try again.</p>';
+    }
+  }
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+    if (!tasks.length) {
+      taskList.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">No tasks generated. Try re-estimating the assignment first.</p>';
+      return;
+    }
+    tasks.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-3 p-3.5 rounded-xl border transition cursor-pointer select-none ' +
+        (t.done ? 'bg-white/5 border-white/5 opacity-50' : 'bg-white/8 border-white/10 hover:bg-white/12');
+      row.innerHTML =
+        '<div class="w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition ' +
+        (t.done ? 'bg-violet-500 border-violet-500' : 'border-white/30') + '">' +
+        (t.done ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : '') +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+        '<p class="text-sm font-semibold ' + (t.done ? 'text-white/40 line-through' : 'text-white') + '">' + t.task + '</p>' +
+        '<p class="text-[11px] text-slate-500 font-medium mt-0.5">' + t.minutes + ' min</p>' +
+        '</div>';
+      row.addEventListener('click', () => toggleTask(i));
+      taskList.appendChild(row);
+    });
+    updateProgress();
+    syncPomoToCurrentTask();
+  }
+
+  function toggleTask(index) {
+    const completing = !tasks[index].done;
+    tasks[index].done = completing;
+    localStorage.setItem(crunchCacheKey(activeId), JSON.stringify(tasks));
+    renderTasks();
+    if (completing) {
+      showNudge();
+      if (tasks.every(t => t.done)) {
+        setTimeout(() => showReflection(true), 800);
+      }
+    }
+  }
+
+  function updateProgress() {
+    const total = tasks.length, done = tasks.filter(t => t.done).length;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    progressBar.style.width = pct + '%';
+    progressLbl.textContent = total > 0 ? done + '/' + total + ' tasks done' : 'Loading tasks\u2026';
+    progressPct.textContent = total > 0 ? pct + '%' : '';
+  }
+
+  function showNudge() {
+    const msg = NUDGES[nudgeIndex++ % NUDGES.length];
+    nudgeEl.textContent = msg;
+    nudgeEl.classList.remove('hidden');
+    clearTimeout(nudgeEl._t);
+    nudgeEl._t = setTimeout(() => nudgeEl.classList.add('hidden'), 3500);
+  }
+
+  // Pomodoro
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function updatePomoDisplay() {
+    pomoDisplay.textContent = pad(Math.floor(pomoRemain / 60)) + ':' + pad(pomoRemain % 60);
+    pomoBar.style.width = Math.round(pomoRemain / pomoTotal * 100) + '%';
+    pomoBar.className = 'h-full rounded-full transition-all duration-1000 ' + (pomoBreak ? 'bg-emerald-400' : 'bg-violet-500');
+  }
+
+  function startPomo() {
+    if (pomoRunning) {
+      clearInterval(pomoInterval); pomoRunning = false;
+      pomoStart.textContent = 'Resume'; return;
+    }
+    pomoRunning = true; pomoStart.textContent = 'Pause';
+    pomoInterval = setInterval(() => {
+      pomoRemain--;
+      updatePomoDisplay();
+      if (pomoRemain > 0) return;
+      clearInterval(pomoInterval); pomoRunning = false;
+      if (!pomoBreak) {
+        pomoBreak = true; pomoRemain = BREAK_SECS; pomoTotal = BREAK_SECS;
+        pomoMode.textContent = 'Break Time'; pomoMode.className = 'text-xs font-extrabold uppercase tracking-widest text-emerald-400';
+        pomoStart.textContent = 'Start Break'; pomoSkip.classList.remove('hidden');
+      } else {
+        pomoCycles++; pomoBreak = false;
+        resetPomoToCurrentTask({ preserveCycle: true });
+        pomoCycleEl.textContent = 'Sprint ' + pomoCycles;
+        pomoMode.textContent = 'Work Sprint'; pomoMode.className = 'text-xs font-extrabold uppercase tracking-widest text-violet-400';
+        pomoStart.textContent = 'Start'; pomoSkip.classList.add('hidden');
+      }
+      updatePomoDisplay();
+    }, 1000);
+  }
+
+  function resetPomo() {
+    clearInterval(pomoInterval); pomoRunning = false; pomoCycles = 1;
+    resetPomoToCurrentTask();
+  }
+
+  function resetPomoToCurrentTask(options = {}) {
+    clearInterval(pomoInterval);
+    pomoRunning = false;
+    pomoBreak = false;
+    pomoRemain = currentTaskWorkSeconds();
+    pomoTotal = pomoRemain;
+    pomoCycles = options.preserveCycle ? pomoCycles : 1;
+    pomoCycleEl.textContent = 'Sprint ' + pomoCycles;
+    pomoMode.textContent = 'Work Sprint'; pomoMode.className = 'text-xs font-extrabold uppercase tracking-widest text-violet-400';
+    pomoStart.textContent = 'Start'; pomoSkip.classList.add('hidden');
+    updatePomoDisplay();
+  }
+
+  function currentTaskWorkSeconds() {
+    const current = tasks.find(t => !t.done);
+    const mins = parseInt(current?.minutes, 10);
+    return Number.isFinite(mins) && mins > 0 ? mins * 60 : DEFAULT_WORK_SECS;
+  }
+
+  function syncPomoToCurrentTask() {
+    const current = tasks.find(t => !t.done);
+    pomoTask.textContent = current ? current.task : 'All tasks complete!';
+    if (!current) {
+      resetPomoToCurrentTask();
+      return;
+    }
+
+    resetPomoToCurrentTask({ preserveCycle: true });
+  }
+
+  function crunchCacheKey(id) {
+    return LEGACY_CRUNCH_CACHE_PREFIX + CRUNCH_CACHE_VERSION + '_' + id;
+  }
+
+  function bustLegacyCrunchCachesOnce() {
+    const marker = 'crunch_cache_bust_' + CRUNCH_CACHE_VERSION;
+    if (localStorage.getItem(marker)) return;
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LEGACY_CRUNCH_CACHE_PREFIX) && !key.startsWith(LEGACY_CRUNCH_CACHE_PREFIX + CRUNCH_CACHE_VERSION + '_')) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    localStorage.setItem(marker, '1');
+  }
+
+  pomoStart.addEventListener('click', startPomo);
+  pomoReset.addEventListener('click', resetPomo);
+  pomoSkip.addEventListener('click', () => {
+    clearInterval(pomoInterval); pomoRunning = false; pomoBreak = false;
+    pomoRemain = currentTaskWorkSeconds(); pomoTotal = pomoRemain;
+    pomoMode.textContent = 'Work Sprint'; pomoMode.className = 'text-xs font-extrabold uppercase tracking-widest text-violet-400';
+    pomoStart.textContent = 'Start'; pomoSkip.classList.add('hidden');
+    updatePomoDisplay();
+  });
+
+  closeBtn.addEventListener('click', () => {
+    const anyDone = tasks.some(t => t.done);
+    if (anyDone) { showReflection(false); } else { closeCrunch(); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCrunch(); });
+
+  const reflectionEl    = document.getElementById('crunch-reflection');
+  const reflectionClose = document.getElementById('crunch-reflection-close');
+  if (reflectionClose) reflectionClose.addEventListener('click', closeCrunch);
+
+  function showReflection(allDone) {
+    clearInterval(pomoInterval); pomoRunning = false;
+    const workedMs   = crunchStartTime ? Date.now() - crunchStartTime : 0;
+    const workedMins = Math.max(1, Math.round(workedMs / 60000));
+    const doneTasks  = tasks.filter(t => t.done).length;
+    const totalTasks = tasks.length;
+    const endTime    = new Date();
+    const hh = String(endTime.getHours()).padStart(2, '0');
+    const mm = String(endTime.getMinutes()).padStart(2, '0');
+
+    document.getElementById('reflection-time').textContent   = workedMins + ' min';
+    document.getElementById('reflection-tasks').textContent  = doneTasks + '/' + totalTasks;
+    document.getElementById('reflection-end-time').textContent = hh + ':' + mm;
+
+    const hour = endTime.getHours();
+    let tip = 'Nice work. Starting a bit earlier next time keeps the stress lower.';
+    if (allDone)  tip = 'You finished everything. That\'s the move. 🔥';
+    else if (hour >= 22) tip = 'Late night grind. Starting 2 hours earlier tomorrow would feel way smoother.';
+    else if (hour >= 21) tip = 'Good work. A slightly earlier start gives you more breathing room.';
+    document.getElementById('reflection-tip').textContent = tip;
+
+    taskList.style.display = 'none';
+    reflectionEl.classList.remove('hidden');
+    doneEl.classList.add('hidden');
+  }
+
+  function closeCrunch() {
+    clearInterval(pomoInterval); pomoRunning = false;
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    tasks = []; activeId = null; crunchStartTime = null;
+    taskList.style.display = '';
+    if (reflectionEl) reflectionEl.classList.add('hidden');
+  }
+
+  // Share progress button
+  const shareBtn = document.getElementById('crunch-share-btn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => {
+      const done  = tasks.filter(t => t.done).length;
+      const total = tasks.length;
+      const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+      const text  = total > 0
+        ? `I'm ${pct}% through my ${crunchCourse} assignment. Working hard! 📚`
+        : `Just started crunch mode for ${crunchCourse}. Time to lock in. 📚`;
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = shareBtn.innerHTML;
+        shareBtn.innerHTML = '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        setTimeout(() => { shareBtn.innerHTML = orig; }, 2000);
+      }).catch(() => {});
+    });
+  }
+
+  // Panic overlay logic
+  const panicOverlay = document.getElementById('panic-overlay');
+  if (panicOverlay) {
+    const panicKey = 'panic_shown_' + panicOverlay.dataset.assignmentId + '_' + new Date().toDateString();
+    if (!localStorage.getItem(panicKey)) {
+      localStorage.setItem(panicKey, '1');
+      setTimeout(() => panicOverlay.classList.remove('hidden'), 400);
+    }
+    document.getElementById('panic-go-btn')?.addEventListener('click', () => {
+      panicOverlay.classList.add('hidden');
+      const d = panicOverlay.dataset;
+      openCrunch(d.assignmentId, d.title, d.course, d.minutes, d.due);
+    });
+    document.getElementById('panic-dismiss-btn')?.addEventListener('click', () => {
+      panicOverlay.classList.add('hidden');
+    });
+  }
+
+  // Auto-open crunch from ?open_crunch= URL param (notification email link)
+  const openCrunchId = new URLSearchParams(window.location.search).get('open_crunch');
+  if (openCrunchId) {
+    const btn = document.querySelector(`.crunch-btn[data-course-work-id="${CSS.escape(openCrunchId)}"]`);
+    if (btn) {
+      history.replaceState(null, '', window.location.pathname);
+      setTimeout(() => btn.click(), 300);
+    }
+  }
+
+  // "Start timer" button on assignment cards
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.start-timer-btn');
+    if (!btn) return;
+    e.preventDefault();
+    startTimerNow(btn.dataset.courseWorkId, btn.dataset.title, btn.dataset.course, parseInt(btn.dataset.minutes) || 30);
+  });
+
+  function startTimerNow(courseWorkId, title, course, estimatedMinutes) {
+    const timerSection = document.getElementById('hw-timer-section');
+    const select       = document.getElementById('timer-assignment-select');
+    const startBtn     = document.getElementById('timer-start-btn');
+    if (!timerSection || !select || !startBtn) return;
+
+    // Find or create the option
+    let opt = select.querySelector(`option[value="${CSS.escape(courseWorkId)}"]`);
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = courseWorkId;
+      opt.dataset.title     = title;
+      opt.dataset.course    = course;
+      opt.dataset.estimated = estimatedMinutes;
+      opt.textContent       = title.substring(0, 60) + ' — ' + course;
+      select.appendChild(opt);
+    }
+    select.value    = courseWorkId;
+    startBtn.disabled = false;
+
+    timerSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => startBtn.click(), 400);
+  }
+
+})();
+</script>
+
+<% else %>
+  <!-- Login Page -->
+  <div class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+      <div class="mx-auto w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-600/20 transform -rotate-6">
+        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+      </div>
+      <h2 class="mt-2 text-center text-3xl font-extrabold text-slate-900 tracking-tight">Homework Planner</h2>
+      <p class="mt-2 text-center text-sm text-slate-500 font-medium">Stay on top of your Google Classroom assignments.</p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+      <div class="bg-white py-10 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
+        <%= button_to '/auth/google_oauth2', method: :post, data: { turbo: false }, class: "w-full flex justify-center py-3.5 px-4 border border-slate-200 rounded-xl shadow-sm bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all items-center group" do %>
+          <svg class="h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          <span class="group-hover:text-slate-900 transition-colors">Continue with Google</span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>

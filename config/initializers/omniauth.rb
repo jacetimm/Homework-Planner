@@ -1,0 +1,17 @@
+Rails.application.config.middleware.use OmniAuth::Builder do
+  provider :google_oauth2, ENV["GOOGLE_CLIENT_ID"], ENV["GOOGLE_CLIENT_SECRET"], {
+    scope: "email,profile,https://www.googleapis.com/auth/classroom.courses.readonly,https://www.googleapis.com/auth/classroom.coursework.me.readonly,https://www.googleapis.com/auth/classroom.student-submissions.me.readonly,https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/drive.readonly",
+    # "consent" forces the full OAuth flow without the prompt=none edge case
+    # that causes the session state to be lost and bytesize to fail on nil
+    prompt: "consent",
+    access_type: "offline",
+    # Allows re-using a session that already has Classroom scopes when Calendar is added
+    include_granted_scopes: true,
+    # Prevents a second crash in some omniauth-google-oauth2 versions during JWT decode
+    skip_jwt: false,
+    # This is the exact fix for the nil.bytesize crash in OmniAuth without
+    # requiring changes to the user's browser cookie settings.
+    # Telling the provider to ignore state validation prevents it from trying to secure_compare a nil state.
+    provider_ignores_state: true
+  }
+end

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Homework Planner" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100">
+
+    <% if session[:access_token] %>
+      <!-- Shared Sticky Navbar -->
+      <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="w-full max-w-[1700px] mx-auto px-6 sm:px-10 lg:px-16">
+          <div class="flex items-center justify-between h-16">
+
+            <!-- Logo + Primary Nav Links -->
+            <div class="flex items-center gap-5">
+              <%= link_to root_path, class: "flex items-center gap-2.5 group flex-shrink-0" do %>
+                <div class="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm group-hover:bg-indigo-700 transition">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <span class="font-bold text-slate-900 text-sm hidden sm:block tracking-tight">Homework Planner</span>
+              <% end %>
+
+              <div class="hidden sm:flex items-center gap-0.5">
+                <%= link_to "Dashboard", root_path, class: "text-sm font-semibold px-3 py-1.5 rounded-lg transition #{controller_name == 'dashboard' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}" %>
+                <a href="https://calendar.google.com" target="_blank" rel="noopener" class="text-sm font-semibold px-3 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1">
+                  Calendar
+                  <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </a>
+                <%= link_to "Preferences", settings_path, class: "text-sm font-semibold px-3 py-1.5 rounded-lg transition #{controller_name == 'settings' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}" %>
+              </div>
+            </div>
+
+            <!-- User Info + Logout -->
+            <div class="flex items-center gap-2">
+              <span class="hidden md:flex items-center text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 flex-shrink-0"></span>
+                <%= session[:user_email] %>
+              </span>
+              <%= button_to "Logout", logout_path, method: :delete, data: { turbo: false }, class: "text-sm font-semibold text-slate-500 hover:text-rose-600 py-1.5 px-3 rounded-lg hover:bg-rose-50 transition cursor-pointer" %>
+            </div>
+
+          </div>
+        </div>
+      </nav>
+    <% end %>
+
+    <!-- Flash Toasts (dismissible, auto-hide) -->
+    <% if flash[:notice].present? %>
+      <div id="flash-notice" class="fixed top-20 right-4 z-50 max-w-sm w-full animate-[fadeIn_0.2s_ease-out]" role="alert">
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
+          <svg class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p class="text-sm font-medium flex-1"><%= flash[:notice] %></p>
+          <button onclick="this.closest('#flash-notice').remove()" class="text-emerald-400 hover:text-emerald-700 flex-shrink-0 leading-none text-lg">&times;</button>
+        </div>
+      </div>
+      <script>setTimeout(function(){ var el = document.getElementById('flash-notice'); if(el){ el.style.transition='opacity 0.4s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 400); } }, 4000);</script>
+    <% end %>
+
+    <% if flash[:alert].present? %>
+      <div id="flash-alert" class="fixed top-20 right-4 z-50 max-w-sm w-full" role="alert">
+        <div class="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
+          <svg class="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <p class="text-sm font-medium flex-1"><%= flash[:alert] %></p>
+          <button onclick="this.closest('#flash-alert').remove()" class="text-rose-400 hover:text-rose-700 flex-shrink-0 leading-none text-lg">&times;</button>
+        </div>
+      </div>
+      <script>setTimeout(function(){ var el = document.getElementById('flash-alert'); if(el){ el.style.transition='opacity 0.4s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 400); } }, 6000);</script>
+    <% end %>
+
+    <%= yield %>
+
+  </body>
+</html>
