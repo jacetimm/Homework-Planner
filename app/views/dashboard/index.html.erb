@@ -1,16 +1,313 @@
-<% if session[:access_token] %>
+<% if current_user %>
+<%
+  _today_str   = Date.current.to_s
+  _tonight_plan = @schedule[_today_str] || {}
+  _urgent      = _tonight_plan[:urgent]      || []
+  _needs_focus = _tonight_plan[:needs_focus] || []
+  _can_wait    = _tonight_plan[:can_wait]    || []
+  _mobile_tl   = _tonight_plan[:timeline]   || []
+%>
   <div class="flex flex-col min-h-screen">
 
-    <main class="w-full max-w-[1700px] mx-auto flex-1 px-6 sm:px-10 lg:px-16 py-8">
+    <main class="w-full max-w-[1700px] mx-auto flex-1 px-4 sm:px-10 lg:px-16 pt-0 pb-8 md:py-8">
 
-      <!-- Hero Header & Stats Row -->
-      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+      <style>
+        details.mobile-asgn-card > summary::-webkit-details-marker { display: none; }
+        details.mobile-asgn-card > summary { list-style: none; }
+        details.mobile-asgn-card[open] .mobile-asgn-chevron { transform: rotate(180deg); }
+        @media (max-width: 767px) {
+          .crunch-checkbox { width: 1.75rem !important; height: 1.75rem !important; border-radius: 50% !important; }
+          .crunch-checkbox svg { width: 1rem !important; height: 1rem !important; }
+        }
+      </style>
+
+      <%# ═══ MOBILE SUMMARY CARD (hidden on md+) ═══ %>
+      <div class="md:hidden px-0 pt-4 pb-3">
+        <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-2xl px-5 py-4 relative overflow-hidden">
+          <div class="absolute top-0 right-0 opacity-5 pointer-events-none">
+            <svg class="w-28 h-28 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="relative">
+            <div class="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-400">Tonight</p>
+                <p class="text-3xl font-extrabold text-white leading-none mt-1"><%= @tonight_summary&.dig(:assignment_count) || 0 %></p>
+                <p class="text-xs text-indigo-300 mt-1">assignment<%= @tonight_summary&.dig(:assignment_count) == 1 ? "" : "s" %></p>
+              </div>
+              <div class="text-right">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-400">Work time</p>
+                <p class="text-3xl font-extrabold text-white leading-none mt-1"><%= format_minutes(@tonight_summary&.dig(:total_minutes) || 0) %></p>
+                <% if @tonight_summary&.dig(:fits) %>
+                  <p class="text-xs text-emerald-400 font-bold mt-1">Fits tonight ✓</p>
+                <% else %>
+                  <p class="text-xs text-rose-400 font-bold mt-1">Tight schedule</p>
+                <% end %>
+              </div>
+            </div>
+            <p class="text-sm text-indigo-200 leading-snug">
+              <% if @tonight_assignments.blank? %>
+                No homework tonight — enjoy the break! 🎉
+              <% elsif @tonight_summary&.dig(:fits) && (@tonight_summary&.dig(:total_minutes) || 0) < 60 %>
+                Light night. Quick work and you're done 🎯
+              <% elsif @tonight_summary&.dig(:fits) %>
+                Solid night ahead. You've totally got this 💪
+              <% else %>
+                Tight night — hit the urgent stuff first 🚀
+              <% end %>
+            </p>
+            <div class="flex items-center gap-2 mt-3 flex-wrap">
+              <% if @streak&.dig(:active) && @streak[:count].to_i > 0 %>
+                <span class="inline-flex items-center gap-1.5 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 text-xs font-bold text-orange-200">🔥 <%= @streak[:count] %>-day streak</span>
+              <% end %>
+              <% if @tonight_summary&.dig(:pending_count).to_i > 0 %>
+                <span class="inline-flex items-center gap-1.5 bg-slate-500/20 border border-slate-500/30 rounded-full px-3 py-1 text-xs font-bold text-slate-300">
+                  <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  Estimating...
+                </span>
+              <% end %>
+              <% if @syncing %>
+                <span class="inline-flex items-center gap-1.5 bg-sky-500/20 border border-sky-500/30 rounded-full px-3 py-1 text-xs font-bold text-sky-200">
+                  <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  Syncing…
+                </span>
+              <% end %>
+              <%= button_to "↻ Sync", sync_dashboard_path, method: :post, data: { turbo: false },
+                    class: "inline-flex items-center gap-1 bg-white/10 border border-white/20 hover:bg-white/20 rounded-full px-3 py-1 text-xs font-bold text-white/70 transition cursor-pointer" %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# ═══ MOBILE CONTENT AREA (hidden on md+) ═══ %>
+      <div class="md:hidden" id="mobile-content-area">
+
+        <%# Tonight view (default) %>
+        <div id="mobile-tonight-view">
+
+          <%# Sticky priority tab bar %>
+          <div class="sticky top-0 z-20 bg-white border-b border-slate-200 -mx-4 px-0">
+            <div class="flex">
+              <button id="tab-btn-urgent" onclick="switchBucket('urgent')"
+                      class="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-rose-600 border-rose-500">
+                Urgent
+                <span class="bg-rose-100 text-rose-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full leading-none"><%= _urgent.size %></span>
+              </button>
+              <button id="tab-btn-focus" onclick="switchBucket('focus')"
+                      class="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-slate-400 border-transparent">
+                Focus
+                <span class="bg-slate-100 text-slate-500 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full leading-none"><%= _needs_focus.size %></span>
+              </button>
+              <button id="tab-btn-later" onclick="switchBucket('later')"
+                      class="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-slate-400 border-transparent">
+                Later
+                <span class="bg-slate-100 text-slate-500 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full leading-none"><%= _can_wait.size %></span>
+              </button>
+            </div>
+          </div>
+
+          <%# Urgent bucket %>
+          <div id="mobile-bucket-urgent" class="pt-3 pb-3 space-y-2">
+            <% if _urgent.any? %>
+              <% _urgent.each do |a| %>
+                <%= render "dashboard/mobile_assignment_card", a: a, dot_color: "bg-rose-400", danger_zone_ids: @danger_zone_ids %>
+              <% end %>
+            <% else %>
+              <div class="py-8 text-center">
+                <p class="text-sm font-semibold text-slate-500">No urgent assignments tonight</p>
+                <p class="text-xs text-slate-400 mt-1">Tap Focus or Later to see the rest</p>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Focus bucket (hidden) %>
+          <div id="mobile-bucket-focus" class="hidden pt-3 pb-3 space-y-2">
+            <% if _needs_focus.any? %>
+              <% _needs_focus.each do |a| %>
+                <%= render "dashboard/mobile_assignment_card", a: a, dot_color: "bg-amber-400", danger_zone_ids: @danger_zone_ids %>
+              <% end %>
+            <% else %>
+              <div class="py-8 text-center">
+                <p class="text-sm font-semibold text-slate-500">Nothing in the focus bucket tonight</p>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Later bucket (hidden) %>
+          <div id="mobile-bucket-later" class="hidden pt-3 pb-3 space-y-2">
+            <% if _can_wait.any? %>
+              <% _can_wait.each do |a| %>
+                <%= render "dashboard/mobile_assignment_card", a: a, dot_color: "bg-emerald-400", danger_zone_ids: @danger_zone_ids %>
+              <% end %>
+            <% else %>
+              <div class="py-8 text-center">
+                <p class="text-sm font-semibold text-slate-500">Everything tonight needs attention soon</p>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Compact timeline (first 3 items, expand for rest) %>
+          <% if _mobile_tl.any? %>
+            <div class="pb-4 pt-2">
+              <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div class="flex items-center gap-2">
+                    <div class="p-1.5 bg-indigo-100 rounded-lg">
+                      <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-900">Tonight's Timeline</h3>
+                  </div>
+                  <% if _mobile_tl.size > 3 %>
+                    <button id="mobile-tl-btn" onclick="toggleMobileTimeline()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">See full</button>
+                  <% end %>
+                </div>
+                <div class="divide-y divide-slate-100">
+                  <% _mobile_tl.first(3).each do |block| %>
+                    <%
+                      dur = block[:end_m] - block[:start_m]
+                      case block[:type]
+                      when "study"
+                        dot = (block[:priority] == "urgent" ? "bg-rose-500" : block[:priority] == "needs_focus" ? "bg-amber-500" : "bg-emerald-500")
+                        lbl = block[:label].to_s.truncate(45)
+                      when "break"
+                        dot = "bg-slate-300"; lbl = "Break"
+                      when "extracurricular"
+                        dot = "bg-purple-500"; lbl = block[:label].to_s.truncate(45)
+                      when "calendar"
+                        dot = "bg-sky-500"; lbl = block[:label].to_s.truncate(45)
+                      else
+                        dot = "bg-indigo-500"; lbl = block[:label].to_s.truncate(45)
+                      end
+                    %>
+                    <div class="flex items-center gap-3 px-4 py-2.5">
+                      <span class="text-[11px] font-mono text-slate-400 w-14 flex-shrink-0 tabular-nums"><%= minutes_to_time(block[:start_m]) %></span>
+                      <span class="w-2 h-2 rounded-full <%= dot %> flex-shrink-0"></span>
+                      <span class="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate"><%= lbl %></span>
+                      <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(dur) %></span>
+                    </div>
+                  <% end %>
+                  <% if _mobile_tl.size > 3 %>
+                    <div id="mobile-tl-remaining" class="hidden divide-y divide-slate-100">
+                      <% _mobile_tl[3..].each do |block| %>
+                        <%
+                          dur = block[:end_m] - block[:start_m]
+                          case block[:type]
+                          when "study"
+                            dot = (block[:priority] == "urgent" ? "bg-rose-500" : block[:priority] == "needs_focus" ? "bg-amber-500" : "bg-emerald-500")
+                            lbl = block[:label].to_s.truncate(45)
+                          when "break"
+                            dot = "bg-slate-300"; lbl = "Break"
+                          when "extracurricular"
+                            dot = "bg-purple-500"; lbl = block[:label].to_s.truncate(45)
+                          when "calendar"
+                            dot = "bg-sky-500"; lbl = block[:label].to_s.truncate(45)
+                          else
+                            dot = "bg-indigo-500"; lbl = block[:label].to_s.truncate(45)
+                          end
+                        %>
+                        <div class="flex items-center gap-3 px-4 py-2.5">
+                          <span class="text-[11px] font-mono text-slate-400 w-14 flex-shrink-0 tabular-nums"><%= minutes_to_time(block[:start_m]) %></span>
+                          <span class="w-2 h-2 rounded-full <%= dot %> flex-shrink-0"></span>
+                          <span class="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate"><%= lbl %></span>
+                          <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(dur) %></span>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+        </div><%# end mobile-tonight-view %>
+
+        <%# Weekly view (shown when bottom nav Weekly tab tapped) %>
+        <div id="mobile-weekly-view" class="hidden">
+          <div class="pt-4 pb-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Weekly Workload</h3>
+            <% if @schedule.except("busiest_day", "wont_fit").any? { |_, day| day[:assignments].any? } %>
+              <div class="grid grid-cols-2 gap-2.5">
+                <% (0..6).each do |offset| %>
+                  <%
+                    date = Date.current + offset
+                    date_str = date.to_s
+                    day_data = @schedule[date_str]
+                    is_today = date == Date.current
+                    assignment_count = day_data[:assignments].size
+                    total_minutes = day_data[:total_minutes]
+                    wlabel = if total_minutes > 90 then "Heavy" elsif total_minutes > 45 then "Medium" elsif total_minutes > 0 then "Light" else nil end
+                    wbar_pct = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
+                    wbar_color = wlabel == "Heavy" ? "bg-rose-400" : (wlabel == "Medium" ? "bg-amber-400" : "bg-emerald-400")
+                    wlabel_color = wlabel == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (wlabel == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "text-emerald-600 bg-emerald-50 border-emerald-100")
+                  %>
+                  <div class="<%= is_today ? 'ring-2 ring-indigo-400 bg-indigo-50/60' : 'bg-white' %> rounded-2xl p-3.5 border border-slate-200 relative">
+                    <% if is_today %>
+                      <span class="text-[9px] font-extrabold uppercase tracking-widest text-indigo-500">Today</span>
+                    <% end %>
+                    <p class="text-sm font-extrabold text-slate-800 <%= is_today ? 'mt-0.5' : '' %>"><%= date.strftime("%A") %></p>
+                    <p class="text-xs text-slate-500"><%= date.strftime("%b %-d") %></p>
+                    <% if assignment_count > 0 %>
+                      <div class="w-full h-1.5 bg-slate-200 rounded-full mt-2.5 overflow-hidden">
+                        <div class="<%= wbar_color %> h-full rounded-full" style="width: <%= wbar_pct %>%"></div>
+                      </div>
+                      <div class="flex items-end justify-between mt-1.5 gap-1">
+                        <div>
+                          <p class="text-base font-extrabold text-slate-900"><%= format_minutes(total_minutes) %></p>
+                          <p class="text-[11px] text-slate-500"><%= assignment_count %> task<%= assignment_count == 1 ? "" : "s" %></p>
+                        </div>
+                        <% if wlabel %>
+                          <span class="text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded border <%= wlabel_color %>"><%= wlabel %></span>
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <p class="text-sm text-slate-400 mt-2 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Free
+                      </p>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="py-12 text-center">
+                <p class="text-slate-500 font-medium">Clear week — no assignments scheduled.</p>
+              </div>
+            <% end %>
+          </div>
+        </div><%# end mobile-weekly-view %>
+
+      </div><%# end mobile-content-area %>
+
+      <%# ═══ MOBILE TIMER MINI BAR (shown when timer running on mobile) ═══ %>
+      <div id="mobile-timer-bar" class="md:hidden hidden fixed bottom-16 left-0 right-0 z-40 bg-violet-700 shadow-[0_-2px_10px_rgba(109,40,217,0.3)]">
+        <button onclick="(function(){ var el = document.getElementById('hw-timer-section'); if (el) el.scrollIntoView({ behavior: 'smooth' }); })()"
+                class="w-full flex items-center gap-3 px-4 py-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-white animate-pulse flex-shrink-0"></span>
+          <span id="mobile-timer-label" class="text-sm font-bold text-white flex-1 truncate text-left">Timer running</span>
+          <span id="mobile-timer-elapsed" class="text-sm font-mono font-bold text-white/80 tabular-nums flex-shrink-0">00:00</span>
+          <svg class="w-4 h-4 text-white/60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- Hero Header & Stats Row (desktop only) -->
+      <div class="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
-          <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Your Dashboard</h2>
-          <p class="text-slate-500 text-base">Here's what's on your plate today.</p>
+          <div class="flex items-center gap-3 mb-1">
+            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Your Dashboard</h2>
+            <% if @syncing %>
+              <span class="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-200 rounded-full px-3 py-1 text-xs font-bold text-sky-600">
+                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                Syncing…
+              </span>
+            <% end %>
+          </div>
+          <div class="flex items-center gap-3">
+            <p class="text-slate-500 text-base">Here's what's on your plate today.</p>
+            <%= button_to "↻ Sync now", sync_dashboard_path, method: :post, data: { turbo: false },
+                  class: "text-xs font-semibold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:border-indigo-200 transition cursor-pointer" %>
+          </div>
         </div>
 
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-3 w-full md:w-auto">
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 min-w-[130px]">
             <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tonight</p>
             <p class="text-2xl font-extrabold text-indigo-600"><%= @tonight_summary&.dig(:assignment_count) || 0 %></p>
@@ -38,18 +335,40 @@
       <!-- Main Layout -->
       <div class="space-y-8">
 
-        <!-- Streak tracker -->
-        <% if @streak && (@streak[:count].to_i > 0) %>
-          <div class="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-3">
-            <span class="text-2xl leading-none select-none">🔥</span>
-            <div>
-              <% if @streak[:active] %>
-                <p class="text-sm font-extrabold text-orange-900"><%= @streak[:count] %> day streak — starting assignments early</p>
-                <p class="text-xs text-orange-600 mt-0.5">Keep it going tonight to extend the streak</p>
-              <% else %>
-                <p class="text-sm font-extrabold text-slate-700">Streak lost — get it back tonight</p>
-                <p class="text-xs text-slate-500 mt-0.5">Your last streak was <%= @streak[:count] %> day<%= @streak[:count] == 1 ? "" : "s" %></p>
-              <% end %>
+        <!-- Streak tracker (desktop only — mobile sees streak in summary card) -->
+        <% if @streak %>
+          <%
+            streak_count = @streak[:count].to_i
+            streak_active = @streak[:active]
+            streak_dots = [ streak_count, 7 ].min
+          %>
+          <div class="hidden md:block bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-orange-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
+                  <span class="text-2xl leading-none select-none">🔥</span>
+                </div>
+                <div>
+                  <p class="text-[11px] font-bold uppercase tracking-wider text-orange-500">Early Start Streak</p>
+                  <% if streak_active && streak_count > 0 %>
+                    <p class="text-sm font-extrabold text-orange-900"><%= streak_count %> day streak</p>
+                    <p class="text-xs text-orange-700 mt-0.5">Start tonight to keep it alive.</p>
+                  <% elsif streak_count > 0 %>
+                    <p class="text-sm font-extrabold text-slate-800">Streak paused</p>
+                    <p class="text-xs text-slate-600 mt-0.5">Last streak: <%= streak_count %> day<%= streak_count == 1 ? "" : "s" %>. Start tonight to begin again.</p>
+                  <% else %>
+                    <p class="text-sm font-extrabold text-slate-800">No streak yet</p>
+                    <p class="text-xs text-slate-600 mt-0.5">Start an assignment early tonight to begin one.</p>
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 sm:justify-end">
+                <% 7.times do |index| %>
+                  <span class="w-2.5 h-2.5 rounded-full <%= index < streak_dots ? (streak_active ? 'bg-orange-500' : 'bg-orange-300') : 'bg-orange-100 border border-orange-200' %>"></span>
+                <% end %>
+                <span class="ml-2 text-xs font-bold <%= streak_active && streak_count > 0 ? 'text-orange-700' : 'text-slate-500' %>"><%= streak_count %> day<%= streak_count == 1 ? "" : "s" %></span>
+              </div>
             </div>
           </div>
         <% end %>
@@ -115,8 +434,8 @@
           </div>
         <% end %>
 
-        <!-- Section 1: Tonight's Plan -->
-        <section class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl shadow-xl border border-indigo-800/50 overflow-hidden relative">
+        <!-- Section 1: Tonight's Plan (desktop only — mobile sees priority tabs above) -->
+        <section class="hidden md:block bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl shadow-xl border border-indigo-800/50 overflow-hidden relative">
           <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
             <svg class="w-48 h-48 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           </div>
@@ -148,6 +467,12 @@
                       Biggest: <%= @tonight_summary[:busiest_task][:title].to_s.truncate(24) %> (<%= format_minutes(@tonight_summary[:busiest_task][:minutes]) %>)
                     </span>
                   <% end %>
+                  <% if @tonight_summary[:pending_count].to_i > 0 %>
+                    <span class="flex items-center gap-1.5 bg-slate-500/20 border border-slate-500/30 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full">
+                      <svg class="w-3 h-3 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                      <%= @tonight_summary[:pending_count] %> estimate<%= @tonight_summary[:pending_count] == 1 ? "" : "s" %> still loading
+                    </span>
+                  <% end %>
                 <% end %>
               </div>
             </div>
@@ -167,65 +492,91 @@
               urgent       = tonight_plan[:urgent]
               needs_focus  = tonight_plan[:needs_focus]
               can_wait     = tonight_plan[:can_wait]
+              bucket_grid_class = urgent.any? ? "grid grid-cols-1 lg:grid-cols-3 gap-4" : "grid grid-cols-1 lg:grid-cols-2 gap-4"
             %>
 
+            <style>
+              details.priority-bucket > summary { list-style: none; }
+              details.priority-bucket > summary::-webkit-details-marker { display: none; }
+              details.priority-bucket[open] .bucket-chevron { transform: rotate(180deg); }
+              @media (min-width: 768px) {
+                details.priority-bucket > summary { pointer-events: none; cursor: default; }
+                details.priority-bucket .bucket-chevron { display: none !important; }
+              }
+            </style>
+
             <% if tonight_plan && tonight_plan[:assignments].any? %>
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div class="<%= bucket_grid_class %>">
 
                 <%# ── Urgent ── %>
                 <% if urgent.any? %>
-                  <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
-                    <div class="flex items-center gap-2 mb-3">
+                  <details class="priority-bucket rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4" open>
+                    <summary class="flex items-center gap-2 cursor-pointer select-none">
                       <div class="w-2 h-2 rounded-full bg-rose-400 animate-pulse flex-shrink-0"></div>
                       <h4 class="text-xs font-bold uppercase tracking-widest text-rose-300">Do First — Urgent</h4>
                       <span class="ml-auto text-[10px] font-bold text-rose-300/60"><%= urgent.size %> task<%= urgent.size == 1 ? "" : "s" %></span>
-                    </div>
-                    <div class="space-y-2">
+                      <svg class="bucket-chevron w-3 h-3 text-rose-400/70 ml-1.5 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    </summary>
+                    <div class="mt-3 max-h-[20rem] lg:max-h-[28rem] overflow-y-auto pr-1 space-y-2">
                       <% urgent.each do |a| %>
                         <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-rose-300", accent_border: "border-rose-500/20", due_text: "text-rose-200", danger_zone_ids: @danger_zone_ids } %>
                       <% end %>
                     </div>
-                  </div>
+                  </details>
                 <% end %>
 
                 <%# ── Needs Focus ── %>
-                <% if needs_focus.any? %>
-                  <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-                    <div class="flex items-center gap-2 mb-3">
-                      <div class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></div>
-                      <h4 class="text-xs font-bold uppercase tracking-widest text-amber-300">Needs Focus</h4>
-                      <span class="ml-auto text-[10px] font-bold text-amber-300/60"><%= needs_focus.size %> task<%= needs_focus.size == 1 ? "" : "s" %></span>
-                    </div>
-                    <div class="space-y-2">
+                <details class="priority-bucket rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4" open>
+                  <summary class="flex items-center gap-2 cursor-pointer select-none">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-amber-300">Needs Focus</h4>
+                    <span class="ml-auto text-[10px] font-bold text-amber-300/60"><%= needs_focus.size %> task<%= needs_focus.size == 1 ? "" : "s" %></span>
+                    <svg class="bucket-chevron w-3 h-3 text-amber-400/70 ml-1.5 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  </summary>
+                  <% if needs_focus.any? %>
+                    <div class="mt-3 max-h-[20rem] lg:max-h-[28rem] overflow-y-auto pr-1 space-y-2">
                       <% needs_focus.each do |a| %>
                         <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-amber-300", accent_border: "border-amber-500/20", due_text: "text-amber-200", danger_zone_ids: @danger_zone_ids } %>
                       <% end %>
                     </div>
-                  </div>
-                <% end %>
+                  <% else %>
+                    <div class="mt-3 rounded-xl border border-amber-500/15 bg-black/10 px-3 py-4 text-center">
+                      <p class="text-sm font-semibold text-white/80">Nothing in this bucket.</p>
+                      <p class="text-xs text-amber-200/70 mt-1">Tonight's work is either urgent or safe to save for later.</p>
+                    </div>
+                  <% end %>
+                </details>
 
                 <%# ── Can Wait ── %>
-                <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-                  <div class="flex items-center gap-2 mb-3">
+                <details class="priority-bucket rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4" open>
+                  <summary class="flex items-center gap-2 cursor-pointer select-none">
                     <div class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></div>
                     <h4 class="text-xs font-bold uppercase tracking-widest text-emerald-300">Can Wait</h4>
                     <span class="ml-auto text-[10px] font-bold text-emerald-300/60"><%= can_wait.size %> task<%= can_wait.size == 1 ? "" : "s" %></span>
-                  </div>
+                    <svg class="bucket-chevron w-3 h-3 text-emerald-400/70 ml-1.5 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  </summary>
                   <% if can_wait.any? %>
-                    <div class="space-y-2">
+                    <div class="mt-3 max-h-[20rem] lg:max-h-[28rem] overflow-y-auto pr-1 space-y-2">
                       <% can_wait.each do |a| %>
                         <%= render partial: "dashboard/assignment_card", locals: { a: a, accent_text: "text-emerald-300", accent_border: "border-emerald-500/20", due_text: "text-emerald-200", danger_zone_ids: @danger_zone_ids } %>
                       <% end %>
                     </div>
                   <% else %>
-                    <div class="rounded-xl border border-emerald-500/15 bg-black/10 px-3 py-4 text-center">
+                    <div class="mt-3 rounded-xl border border-emerald-500/15 bg-black/10 px-3 py-4 text-center">
                       <p class="text-sm font-semibold text-white/80">Nothing in this bucket.</p>
                       <p class="text-xs text-emerald-200/70 mt-1">Everything scheduled tonight needs attention sooner.</p>
                     </div>
                   <% end %>
-                </div>
+                </details>
 
               </div>
+              <script>
+                document.querySelectorAll('details.priority-bucket').forEach(function(el) {
+                  el.addEventListener('toggle', function() {
+                    if (window.innerWidth >= 768 && !el.open) el.open = true;
+                  });
+                });
+              </script>
 
             <% else %>
               <div class="p-16 text-center">
@@ -273,9 +624,9 @@
           </div>
         </section>
 
-        <!-- Section 2: Weekly Workload -->
+        <!-- Section 2: Weekly Workload (desktop only — mobile sees weekly via bottom nav) -->
         <% if @schedule.except("busiest_day", "wont_fit").any? { |_, day| day[:assignments].any? } %>
-        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <section class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50 flex-wrap">
             <div class="flex items-center gap-3">
               <div class="p-2 bg-violet-100 rounded-lg">
@@ -357,7 +708,7 @@
         </section>
         <% end %>
 
-        <!-- Section: Tonight's Timeline -->
+        <!-- Section: Tonight's Timeline (desktop only — mobile sees compact timeline above) -->
         <%
           _tonight_tl   = @schedule[Date.current.to_s]
           _timeline     = _tonight_tl[:timeline]
@@ -366,7 +717,7 @@
           _overflow     = @schedule["wont_fit"]&.any?
         %>
         <% if _timeline.any? %>
-        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <section class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
           <!-- Header -->
           <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
@@ -419,7 +770,7 @@
           </div>
 
           <!-- Condensed timeline rows -->
-          <div id="timeline-body" class="px-6 py-4">
+          <div id="timeline-body" class="px-3 sm:px-6 py-4">
             <div class="divide-y divide-slate-100">
               <% _timeline.each do |block| %>
                 <%
@@ -453,7 +804,7 @@
                 %>
                 <div class="flex items-center gap-3 py-2 group">
                   <!-- Time range -->
-                  <span class="text-[11px] font-mono text-slate-400 w-36 flex-shrink-0 tabular-nums"><%= time_range %></span>
+                  <span class="text-[11px] font-mono text-slate-400 w-[5.5rem] sm:w-36 flex-shrink-0 tabular-nums"><%= time_range %></span>
                   <!-- Dot -->
                   <span class="w-2.5 h-2.5 rounded-full <%= dot %> flex-shrink-0 ring-2 ring-white shadow-sm"></span>
                   <!-- Label -->
@@ -504,7 +855,7 @@
 
               <!-- End marker -->
               <div class="flex items-center gap-3 py-2">
-                <span class="text-[11px] font-mono text-slate-300 w-36 flex-shrink-0"><%= minutes_to_time(_timeline.last[:end_m]) %></span>
+                <span class="text-[11px] font-mono text-slate-300 w-[5.5rem] sm:w-36 flex-shrink-0"><%= minutes_to_time(_timeline.last[:end_m]) %></span>
                 <span class="w-2.5 h-2.5 rounded-full bg-slate-200 flex-shrink-0 ring-2 ring-white"></span>
                 <span class="text-sm font-medium text-slate-300 italic">Done for tonight</span>
                 </div>
@@ -553,12 +904,21 @@
 
               <!-- Controls -->
               <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <button id="timer-start-btn"
+                  type="button"
+                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-md shadow-violet-200 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled>
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                  Start
+                </button>
                 <button id="timer-pause-btn"
+                  type="button"
                   class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md shadow-amber-200 transition-all active:scale-95 hidden">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                   Pause
                 </button>
                 <button id="timer-stop-btn"
+                  type="button"
                   class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-md shadow-rose-200 transition-all active:scale-95 hidden">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
                   Done — Save
@@ -567,7 +927,7 @@
             </div>
 
             <!-- Result card (shown after stop) -->
-            <div id="timer-result" class="hidden mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 flex items-center gap-4">
+            <div id="timer-result" class="hidden mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 items-center gap-4">
               <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                 <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               </div>
@@ -586,12 +946,16 @@
   const select    = document.getElementById('timer-assignment-select');
   const display   = document.getElementById('timer-display');
   const statusLbl = document.getElementById('timer-status-label');
+  const startBtn  = document.getElementById('timer-start-btn');
   const pauseBtn  = document.getElementById('timer-pause-btn');
   const stopBtn   = document.getElementById('timer-stop-btn');
   const resultDiv = document.getElementById('timer-result');
   const resultTxt = document.getElementById('timer-result-text');
   const resultSub = document.getElementById('timer-result-sub');
   const resetBtn  = document.getElementById('timer-reset-btn');
+  const mobileBar         = document.getElementById('mobile-timer-bar');
+  const mobileTimerLabel  = document.getElementById('mobile-timer-label');
+  const mobileTimerElapsed = document.getElementById('mobile-timer-elapsed');
 
   if (!select) return;
 
@@ -624,6 +988,7 @@
     intervalId = setInterval(() => {
       elapsed = baseElapsed + Math.floor((Date.now() - startedAt) / 1000);
       updateDisplay();
+      if (mobileTimerElapsed) mobileTimerElapsed.textContent = display.textContent;
     }, 500);
   }
 
@@ -632,9 +997,18 @@
     baseElapsed = elapsed;
   }
 
+  function selectedAssignmentOption() {
+    const option = select.options[select.selectedIndex];
+    return option && option.value ? option : null;
+  }
+
+  function syncTimerStartState() {
+    startBtn.disabled = !select.value || running || !!sessionId;
+  }
+
   async function beginSessionForSelectedAssignment() {
-    const opt = select.options[select.selectedIndex];
-    if (!opt || !opt.value || running || sessionId) return;
+    const opt = selectedAssignmentOption();
+    if (!opt || running || sessionId) return;
 
     const resp = await fetch('<%= study_sessions_path %>', {
       method: 'POST',
@@ -654,15 +1028,24 @@
     sessionId = data.id;
     running = true;
     select.disabled = true;
+    startBtn.classList.add('hidden');
     pauseBtn.classList.remove('hidden');
     stopBtn.classList.remove('hidden');
     resultDiv.classList.add('hidden');
     statusLbl.textContent = 'Running';
     statusLbl.className = 'text-xs font-semibold text-violet-500 mt-2 uppercase tracking-widest';
     startTick();
+    if (mobileBar) {
+      if (mobileTimerLabel) mobileTimerLabel.textContent = opt.dataset.title || 'Timer running';
+      mobileBar.classList.remove('hidden');
+    }
   }
 
-  select.addEventListener('change', () => {
+  select.addEventListener('change', syncTimerStartState);
+  select.addEventListener('input', syncTimerStartState);
+
+  startBtn.addEventListener('click', (event) => {
+    event.preventDefault();
     beginSessionForSelectedAssignment();
   });
 
@@ -676,7 +1059,7 @@
       pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
       startTick();
       return;
-    end
+    }
 
     running = false;
     stopTick();
@@ -722,8 +1105,10 @@
       resultSub.textContent = '';
     }
     resultDiv.classList.remove('hidden');
+    resultDiv.classList.add('flex');
     statusLbl.textContent = 'Done';
     statusLbl.className = 'text-xs font-semibold text-emerald-500 mt-2 uppercase tracking-widest';
+    if (mobileBar) mobileBar.classList.add('hidden');
   });
 
   resetBtn.addEventListener('click', () => {
@@ -733,20 +1118,26 @@
     running     = false;
     select.disabled = false;
     select.value = '';
+    startBtn.classList.remove('hidden');
+    syncTimerStartState();
     pauseBtn.classList.add('hidden');
     pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
     stopBtn.classList.add('hidden');
     resultDiv.classList.add('hidden');
+    resultDiv.classList.remove('flex');
+    if (mobileBar) mobileBar.classList.add('hidden');
     display.textContent = '00:00';
     statusLbl.textContent = 'Ready';
     statusLbl.className = 'text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest';
     updateDisplay();
   });
+
+  syncTimerStartState();
 })();
 </script>
 
-        <!-- Active Classes -->
-        <section class="mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <!-- Active Classes (desktop only) -->
+        <section class="hidden md:block mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
             <div class="p-2 bg-emerald-100 rounded-lg">
               <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
@@ -837,10 +1228,10 @@
       </div>
     </div>
 
-    <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
+    <div class="flex flex-col-reverse lg:flex-row flex-1 min-h-0">
 
       <!-- Left: Micro-task list + progress -->
-      <div class="flex-1 overflow-y-auto p-6 lg:p-8 flex flex-col gap-6">
+      <div class="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 flex flex-col gap-6">
 
         <!-- Progress bar -->
         <div>
@@ -900,7 +1291,7 @@
       </div>
 
       <!-- Right: Pomodoro timer -->
-      <div class="lg:w-72 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 p-6 flex flex-col gap-5">
+      <div class="lg:w-72 flex-shrink-0 h-[38vh] lg:h-auto overflow-y-auto lg:overflow-visible border-b lg:border-b-0 lg:border-l border-white/10 p-6 flex flex-col gap-5">
         <div class="flex items-center justify-between">
           <span id="pomo-mode-label" class="text-xs font-extrabold uppercase tracking-widest text-violet-400">Work Sprint</span>
           <span id="pomo-cycle-count" class="text-xs font-bold text-slate-500">Sprint 1</span>
@@ -1034,7 +1425,7 @@
       row.className = 'flex items-start gap-3 p-3.5 rounded-xl border transition cursor-pointer select-none ' +
         (t.done ? 'bg-white/5 border-white/5 opacity-50' : 'bg-white/8 border-white/10 hover:bg-white/12');
       row.innerHTML =
-        '<div class="w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition ' +
+        '<div class="crunch-checkbox w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition ' +
         (t.done ? 'bg-violet-500 border-violet-500' : 'border-white/30') + '">' +
         (t.done ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : '') +
         '</div>' +
@@ -1266,39 +1657,95 @@
     }
   }
 
-  // "Start timer" button on assignment cards
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.start-timer-btn');
-    if (!btn) return;
-    e.preventDefault();
-    startTimerNow(btn.dataset.courseWorkId, btn.dataset.title, btn.dataset.course, parseInt(btn.dataset.minutes) || 30);
-  });
-
-  function startTimerNow(courseWorkId, title, course, estimatedMinutes) {
-    const timerSection = document.getElementById('hw-timer-section');
-    const select       = document.getElementById('timer-assignment-select');
-    const startBtn     = document.getElementById('timer-start-btn');
-    if (!timerSection || !select || !startBtn) return;
-
-    // Find or create the option
-    let opt = select.querySelector(`option[value="${CSS.escape(courseWorkId)}"]`);
-    if (!opt) {
-      opt = document.createElement('option');
-      opt.value = courseWorkId;
-      opt.dataset.title     = title;
-      opt.dataset.course    = course;
-      opt.dataset.estimated = estimatedMinutes;
-      opt.textContent       = title.substring(0, 60) + ' — ' + course;
-      select.appendChild(opt);
-    }
-    select.value    = courseWorkId;
-    startBtn.disabled = false;
-
-    timerSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => startBtn.click(), 400);
-  }
-
 })();
+</script>
+
+  <%# Auto-detect browser timezone on first login and save silently %>
+  <% if @detect_timezone %>
+  <script>
+  (function() {
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!tz) return;
+      fetch('<%= set_user_timezone_path %>', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ timezone: tz })
+      });
+    } catch(e) {}
+  })();
+  </script>
+  <% end %>
+
+  <!-- Estimates updated toast (shown when pending estimates resolve on reload) -->
+  <div id="estimates-toast"
+       class="hidden fixed top-4 right-4 z-[80] flex items-center gap-2 bg-emerald-600 text-white text-sm font-bold px-4 py-3 rounded-2xl shadow-lg transition-opacity duration-500">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    AI estimates updated
+  </div>
+
+<script>
+(function() {
+  const PENDING_KEY = 'hw_estimates_pending';
+  const hasPending = <%= @any_pending_estimates ? 'true' : 'false' %>;
+
+  if (hasPending) {
+    // Mark pending in localStorage and poll every 15s
+    localStorage.setItem(PENDING_KEY, '1');
+    setTimeout(function() { location.reload(); }, 15000);
+  } else if (localStorage.getItem(PENDING_KEY)) {
+    // Estimates just resolved — show toast and clear flag
+    localStorage.removeItem(PENDING_KEY);
+    var toast = document.getElementById('estimates-toast');
+    if (toast) {
+      toast.classList.remove('hidden');
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.classList.add('hidden'); toast.style.opacity = ''; }, 500);
+      }, 3000);
+    }
+  }
+})();
+</script>
+
+<script>
+// Mobile priority tab switching
+function switchBucket(name) {
+  ['urgent', 'focus', 'later'].forEach(function(n) {
+    var panel = document.getElementById('mobile-bucket-' + n);
+    if (panel) panel.classList.toggle('hidden', n !== name);
+  });
+  var styles = {
+    urgent: 'flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-rose-600 border-rose-500',
+    focus:  'flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-amber-600 border-amber-500',
+    later:  'flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-emerald-600 border-emerald-500'
+  };
+  var inactive = 'flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase border-b-2 text-slate-400 border-transparent';
+  ['urgent', 'focus', 'later'].forEach(function(n) {
+    var btn = document.getElementById('tab-btn-' + n);
+    if (btn) btn.className = n === name ? styles[n] : inactive;
+  });
+}
+
+// Mobile timeline expand/collapse
+function toggleMobileTimeline() {
+  var remaining = document.getElementById('mobile-tl-remaining');
+  var btn = document.getElementById('mobile-tl-btn');
+  if (!remaining) return;
+  var isHidden = remaining.classList.contains('hidden');
+  remaining.classList.toggle('hidden');
+  if (btn) btn.textContent = isHidden ? 'Collapse' : 'See full';
+}
+
+// Auto-switch to the tab specified in the URL (e.g. ?tab=weekly when returning from Settings)
+// Must run after DOMContentLoaded so the bottom-nav buttons exist in the DOM when we update their classes.
+document.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('tab') === 'weekly') switchMobileTab('weekly');
+});
 </script>
 
 <% else %>

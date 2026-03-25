@@ -1,12 +1,19 @@
 require "oauth2"
 
 class ApplicationController < ActionController::Base
-  # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
   before_action :set_time_zone
 
+  helper_method :current_user
+
   def set_time_zone
-    Time.zone = "America/New_York"
+    tz = current_user&.timezone.presence || "Eastern Time (US & Canada)"
+    Time.zone = ActiveSupport::TimeZone[tz] || ActiveSupport::TimeZone["Eastern Time (US & Canada)"]
+  end
+
+  def current_user
+    return @current_user if defined?(@current_user)
+    @current_user = User.find_by(id: session[:user_id]) if session[:user_id]
   end
 
   # Catch expired/invalid tokens from Google Classroom or Calendar API
@@ -18,41 +25,31 @@ class ApplicationController < ActionController::Base
       raise exception
     end
   end
+  rescue_from "OAuth2::Error", with: :handle_oauth2_error
 
   private
 
   def reauthenticate(exception = nil)
-    if session[:refresh_token].present?
+    if current_user&.refresh_token.present?
       begin
-        client = OAuth2::Client.new(
-          ENV["GOOGLE_CLIENT_ID"],
-          ENV["GOOGLE_CLIENT_SECRET"],
-          {
-            site: "https://accounts.google.com",
-            token_url: "/o/oauth2/token"
-          }
-        )
-        token = OAuth2::AccessToken.new(
-          client,
-          session[:access_token],
-          refresh_token: session[:refresh_token]
-        )
-        new_token = token.refresh!
-
-        session[:access_token] = new_token.token
-        session[:refresh_token] = new_token.refresh_token if new_token.refresh_token.present?
-
-        # Silently retry the user's last request with the new access token
+        current_user.refresh_access_token!
         redirect_back(fallback_location: root_path)
         return
-      rescue StandardError => e
-        Rails.logger.error "[AUTH] Token refresh failed: #{e.message}"
-        # Fall through to hard reset if refresh is revoked or fails
+      rescue OAuth2::Error, ActiveRecord::RecordInvalid => e
+        Rails.logger.error "[AUTH] Token refresh failed: #{e.class} #{e.message}"
+      rescue => e
+        Rails.logger.error "[AUTH] Unexpected token refresh error: #{e.class} #{e.message}\n#{e.backtrace.first(3).join("\n")}"
+        raise
       end
     end
 
-    # Clear the dead token and force manual sign-in
     reset_session
     redirect_to root_path, alert: "Your Google session expired. Please log in again to sync your assignments."
+  end
+
+  def handle_oauth2_error(exception)
+    Rails.logger.error "[AUTH] OAuth2 error: #{exception.message}"
+    reset_session
+    redirect_to root_path, alert: "Google sign-in expired or was revoked. Please connect your Google account again."
   end
 end

@@ -188,24 +188,6 @@ class TimeEstimator
   end
 
   def resolve_api_key
-    env_key = ENV["GROQ_API_KEY"].to_s.strip
-    return env_key if env_key.present?
-
-    env_file = File.join(app_root, ".env")
-    return nil unless File.exist?(env_file)
-
-    File.foreach(env_file) do |line|
-      next unless line.start_with?("GROQ_API_KEY=")
-
-      return line.split("=", 2).last.to_s.strip
-    end
-
-    nil
-  end
-
-  def app_root
-    return Rails.root.to_s if defined?(Rails) && Rails.respond_to?(:root) && Rails.root.present?
-
-    Dir.pwd
+    Rails.application.credentials.groq_api_key.to_s.strip.presence
   end
 end

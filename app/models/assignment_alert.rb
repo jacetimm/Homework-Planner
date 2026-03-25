@@ -1,4 +1,6 @@
 class AssignmentAlert < ApplicationRecord
+  belongs_to :user, optional: true
+
   validates :user_email, :course_work_id, :alert_type, :sent_at, presence: true
 
   def self.already_sent_today?(user_email:, course_work_id:, alert_type: "urgent_reminder")

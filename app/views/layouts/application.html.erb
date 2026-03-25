@@ -18,11 +18,11 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100">
+  <body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 pb-16 md:pb-0">
 
-    <% if session[:access_token] %>
-      <!-- Shared Sticky Navbar -->
-      <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <% if current_user %>
+      <!-- Shared Sticky Navbar (desktop only) -->
+      <nav class="hidden md:block bg-white border-b border-slate-200 sticky top-0 z-40">
         <div class="w-full max-w-[1700px] mx-auto px-6 sm:px-10 lg:px-16">
           <div class="flex items-center justify-between h-16">
 
@@ -49,7 +49,7 @@
             <div class="flex items-center gap-2">
               <span class="hidden md:flex items-center text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 flex-shrink-0"></span>
-                <%= session[:user_email] %>
+                <%= current_user.email %>
               </span>
               <%= button_to "Logout", logout_path, method: :delete, data: { turbo: false }, class: "text-sm font-semibold text-slate-500 hover:text-rose-600 py-1.5 px-3 rounded-lg hover:bg-rose-50 transition cursor-pointer" %>
             </div>
@@ -61,7 +61,7 @@
 
     <!-- Flash Toasts (dismissible, auto-hide) -->
     <% if flash[:notice].present? %>
-      <div id="flash-notice" class="fixed top-20 right-4 z-50 max-w-sm w-full animate-[fadeIn_0.2s_ease-out]" role="alert">
+      <div id="flash-notice" class="fixed top-4 md:top-20 right-4 z-50 max-w-sm w-full animate-[fadeIn_0.2s_ease-out]" role="alert">
         <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
           <svg class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <p class="text-sm font-medium flex-1"><%= flash[:notice] %></p>
@@ -72,7 +72,7 @@
     <% end %>
 
     <% if flash[:alert].present? %>
-      <div id="flash-alert" class="fixed top-20 right-4 z-50 max-w-sm w-full" role="alert">
+      <div id="flash-alert" class="fixed top-4 md:top-20 right-4 z-50 max-w-sm w-full" role="alert">
         <div class="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
           <svg class="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
           <p class="text-sm font-medium flex-1"><%= flash[:alert] %></p>
@@ -82,7 +82,63 @@
       <script>setTimeout(function(){ var el = document.getElementById('flash-alert'); if(el){ el.style.transition='opacity 0.4s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 400); } }, 6000);</script>
     <% end %>
 
+    <% if current_user %>
+      <!-- switchMobileTab must be defined before yield so dashboard's auto-switch IIFE can call it -->
+      <script>
+      function switchMobileTab(tab) {
+        var tonight = document.getElementById('mobile-tonight-view');
+        var weekly  = document.getElementById('mobile-weekly-view');
+
+        // Not on the dashboard — navigate there with the desired tab as a param
+        if (!tonight || !weekly) {
+          window.location.href = '/' + (tab === 'weekly' ? '?tab=weekly' : '');
+          return;
+        }
+
+        var btnT    = document.getElementById('nav-btn-tonight');
+        var btnW    = document.getElementById('nav-btn-weekly');
+        var activeClass   = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 text-indigo-600 transition';
+        var inactiveClass = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 text-slate-400 transition';
+        if (tab === 'tonight') {
+          tonight.classList.remove('hidden');
+          weekly.classList.add('hidden');
+          if (btnT) btnT.className = activeClass;
+          if (btnW) btnW.className = inactiveClass;
+        } else {
+          tonight.classList.add('hidden');
+          weekly.classList.remove('hidden');
+          if (btnW) btnW.className = activeClass;
+          if (btnT) btnT.className = inactiveClass;
+        }
+      }
+      </script>
+    <% end %>
+
     <%= yield %>
+
+    <% if current_user %>
+      <!-- Mobile bottom nav bar (hidden on md+) -->
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 safe-area-inset-bottom">
+        <div class="flex">
+          <button id="nav-btn-tonight" onclick="switchMobileTab('tonight')"
+                  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 <%= controller_name == 'dashboard' ? 'text-indigo-600' : 'text-slate-400' %> transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            <span class="text-[10px] font-bold">Tonight</span>
+          </button>
+          <button id="nav-btn-weekly" onclick="switchMobileTab('weekly')"
+                  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-slate-400 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span class="text-[10px] font-bold">Weekly</span>
+          </button>
+          <a href="<%= settings_path %>"
+             class="flex-1 flex flex-col items-center gap-0.5 py-2.5 <%= controller_name == 'settings' ? 'text-indigo-600' : 'text-slate-400' %> transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-[10px] font-bold">Settings</span>
+          </a>
+        </div>
+      </nav>
+
+    <% end %>
 
   </body>
 </html>

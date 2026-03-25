@@ -1,4 +1,6 @@
 class AssignmentReestimate < ApplicationRecord
+  belongs_to :user, optional: true
+
   ASSIGNMENT_LIMIT = 2
   DAILY_LIMIT = 10
 

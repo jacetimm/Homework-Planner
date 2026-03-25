@@ -1,7 +1,7 @@
 class StudySessionsController < ApplicationController
   # POST /study_sessions — called when the timer starts
   def create
-    unless session[:access_token]
+    unless current_user
       render json: { error: "Not logged in" }, status: :unauthorized and return
     end
 
@@ -9,14 +9,15 @@ class StudySessionsController < ApplicationController
 
     ss = StudySession.create!(
       course_work_id:    p[:course_work_id].to_s,
-      user_email:        session[:user_email].to_s,
+      user_email:        current_user.email,
       assignment_title:  p[:assignment_title].to_s,
       course_name:       p[:course_name].to_s,
       estimated_minutes: p[:estimated_minutes].to_i,
+      user_id:           current_user.id,
       started_at:        Time.current
     )
 
-    UserSetting.for_email(session[:user_email]).record_study_day!
+    UserSetting.for_email(current_user.email).record_study_day!
 
     render json: { id: ss.id }
   rescue ActiveRecord::RecordInvalid => e
@@ -25,11 +26,11 @@ class StudySessionsController < ApplicationController
 
   # PATCH /study_sessions/:id — called when the timer stops
   def update
-    unless session[:access_token]
+    unless current_user
       render json: { error: "Not logged in" }, status: :unauthorized and return
     end
 
-    ss = StudySession.find_by(id: params[:id], user_email: session[:user_email])
+    ss = StudySession.find_by(id: params[:id], user_email: current_user.email)
     unless ss
       render json: { error: "Session not found" }, status: :not_found and return
     end

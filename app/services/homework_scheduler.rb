@@ -27,6 +27,12 @@ class HomeworkScheduler
 
   def schedule(assignments)
     today = Date.current
+    normalized_assignments = Array(assignments).filter_map do |assignment|
+      due_date = normalized_due_date(assignment[:due_date])
+      next unless due_date
+
+      assignment.merge(due_date: due_date)
+    end
 
     # 1. Initialize 7-day output
     schedule_hash = {}
@@ -48,7 +54,7 @@ class HomeworkScheduler
     schedule_hash["wont_fit_tonight"] = []
 
     # 2. Filter to actionable assignments due within the next 7 days
-    actionable = assignments.select do |a|
+    actionable = normalized_assignments.select do |a|
       next false if a[:state] == "TURNED_IN" || a[:state] == "RETURNED"
       next false unless a[:due_date]
       (a[:due_date] - today).to_i <= 7
@@ -203,6 +209,15 @@ class HomeworkScheduler
   end
 
   private
+
+  def normalized_due_date(value)
+    return value if value.is_a?(Date)
+    return Date.parse(value.to_s) if value.present?
+
+    nil
+  rescue ArgumentError
+    nil
+  end
 
   def populate_wont_fit_tonight!(schedule_hash, actionable, today)
     today_str = today.to_s

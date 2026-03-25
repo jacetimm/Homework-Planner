@@ -5,7 +5,7 @@ class SettingsController < ApplicationController
   def show
     # Fetch active courses for the multi-select dropdown
     begin
-      classroom_service = ClassroomService.new(session[:access_token])
+      classroom_service = ClassroomService.new(current_user.access_token)
       @active_courses = classroom_service.courses
     rescue StandardError => e
       raise e if e.is_a?(Google::Apis::AuthorizationError) || (e.is_a?(Google::Apis::ClientError) && (e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")))
@@ -14,7 +14,7 @@ class SettingsController < ApplicationController
     end
 
     begin
-      @google_calendars = CalendarService.new(session[:access_token]).calendars
+      @google_calendars = CalendarService.new(current_user.access_token).calendars
     rescue StandardError => e
       raise e if e.is_a?(Google::Apis::AuthorizationError) || (e.is_a?(Google::Apis::ClientError) && (e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")))
       Rails.logger.error "[Settings] Failed to fetch calendars: #{e.message}"
@@ -26,6 +26,8 @@ class SettingsController < ApplicationController
   end
 
   def update
+    save_user_timezone
+
     if @user_setting.update(user_setting_params)
       redirect_to settings_path, notice: "Settings saved successfully."
     else
@@ -35,14 +37,21 @@ class SettingsController < ApplicationController
 
   private
 
+  def save_user_timezone
+    tz_name = params[:timezone].to_s.strip
+    return if tz_name.blank?
+    as_zone = ActiveSupport::TimeZone[tz_name]
+    current_user.update!(timezone: as_zone.name) if as_zone
+  end
+
   def require_login
-    unless session[:user_email].present?
+    unless current_user
       redirect_to root_path, alert: "You must be logged in to view settings."
     end
   end
 
   def set_user_setting
-    @user_setting = UserSetting.for_email(session[:user_email])
+    @user_setting = UserSetting.for_user(current_user)
   end
 
   def user_setting_params
@@ -64,7 +73,7 @@ class SettingsController < ApplicationController
     # Fetch all calendar IDs from Google and subtract the included set to get ignored set.
     included_ids = Array(permitted.delete(:included_google_calendar_ids)).reject(&:blank?)
     begin
-      all_calendar_ids = CalendarService.new(session[:access_token]).calendars.map { |c| c[:id].to_s }
+      all_calendar_ids = CalendarService.new(current_user.access_token).calendars.map { |c| c[:id].to_s }
       # Any calendar whose ID is NOT in the included_ids list is ignored
       ignored_ids = all_calendar_ids - included_ids
     rescue StandardError => e
@@ -73,10 +82,19 @@ class SettingsController < ApplicationController
     end
     permitted[:ignored_google_calendar_ids] = ignored_ids
 
-    # Process extracurricular blocks from params
-    if params[:user_setting][:extracurricular_blocks].present?
-      blocks = params[:user_setting][:extracurricular_blocks].to_unsafe_h.values
-      permitted[:extracurricular_blocks] = blocks.reject { |b| b["activity"].blank? }
+    # Process extracurricular blocks — build explicit hashes instead of to_unsafe_h
+    # so only the four known fields (activity, start_time, end_time, days) pass through.
+    extracurricular_raw = params.dig(:user_setting, :extracurricular_blocks)
+    if extracurricular_raw.present?
+      permitted[:extracurricular_blocks] = extracurricular_raw.values.filter_map do |block|
+        next if block[:activity].blank?
+        {
+          "activity"   => block[:activity].to_s,
+          "start_time" => block[:start_time].to_s,
+          "end_time"   => block[:end_time].to_s,
+          "days"       => block[:days]
+        }
+      end
     else
       permitted[:extracurricular_blocks] = []
     end
@@ -88,14 +106,15 @@ class SettingsController < ApplicationController
       permitted[:hard_subjects] = []
     end
 
-    ignore_rules = if params[:user_setting][:calendar_ignore_rules].present?
-      params[:user_setting][:calendar_ignore_rules].to_unsafe_h.values.filter_map do |rule|
-        keyword = rule["keyword"].to_s.strip.downcase
+    # Same treatment for calendar ignore rules — only keyword and calendar_id pass through.
+    rules_raw = params.dig(:user_setting, :calendar_ignore_rules)
+    ignore_rules = if rules_raw.present?
+      rules_raw.values.filter_map do |rule|
+        keyword = rule[:keyword].to_s.strip.downcase
         next if keyword.blank?
-
         {
-          "keyword" => keyword,
-          "calendar_id" => rule["calendar_id"].to_s
+          "keyword"     => keyword,
+          "calendar_id" => rule[:calendar_id].to_s
         }
       end
     else

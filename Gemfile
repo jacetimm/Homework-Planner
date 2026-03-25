@@ -4,8 +4,8 @@ source "https://rubygems.org"
 gem "rails", "~> 7.2.3"
 # The original asset pipeline for Rails [https://github.com/rails/sprockets-rails]
 gem "sprockets-rails"
-# Use sqlite3 as the database for Active Record
-gem "sqlite3", ">= 1.4"
+# Use PostgreSQL as the database for Active Record
+gem "pg", "~> 1.5"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
@@ -63,6 +63,9 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  # minitest 6 breaks railties 7.2 line-filtering; pin to 5.x
+  gem "minitest", "~> 5.25"
+  gem "ostruct"
 end
 
 gem "google-apis-calendar_v3", "~> 0.53.0"
@@ -70,3 +73,4 @@ gem "google-apis-drive_v3"
 gem "pdf-reader", "~> 2.11"
 
 gem "oauth2", "~> 2.0"
+gem "rack-attack"

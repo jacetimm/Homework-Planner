@@ -51,8 +51,15 @@ class EstimateAssignmentsJob < ApplicationJob
         "[EstimateAssignmentsJob] course_work_id=#{course_work_id} source=#{result[:source]} " \
         "minutes=#{result[:minutes]} reasoning=#{result[:reasoning]}"
       )
-    rescue StandardError => e
-      Rails.logger.error("[EstimateAssignmentsJob] Failed for #{course_work_id}: #{e.message}")
+    rescue JSON::ParserError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique,
+           Faraday::Error, Net::HTTPError, SocketError, Errno::ECONNREFUSED => e
+      # Expected transient failures — log and continue to the next assignment.
+      Rails.logger.error("[EstimateAssignmentsJob] Skipping #{course_work_id}: #{e.class} #{e.message}")
+    rescue => e
+      # Unexpected error (programming bug) — log full backtrace and re-raise
+      # so it surfaces in production error tracking rather than being silently swallowed.
+      Rails.logger.error("[EstimateAssignmentsJob] Unexpected error for #{course_work_id}: #{e.class} #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+      raise
     end
   end
 

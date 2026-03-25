@@ -11,11 +11,14 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "dashboard#index"
+  post "/sync", to: "dashboard#sync", as: :sync_dashboard
   post "/assignments/:course_work_id/reestimate", to: "assignments#reestimate", as: :reestimate_assignment
   post "/assignments/:course_work_id/set_estimate", to: "assignments#set_estimate", as: :set_assignment_estimate
   resources :study_sessions, only: [ :create, :update ]
   get "/crunch/:course_work_id/microtasks", to: "crunch#microtasks", as: :crunch_microtasks
   get "/crunch/:course_work_id",            to: "crunch#show",      as: :crunch_show
+
+  patch "/users/timezone", to: "users#set_timezone", as: :set_user_timezone
 
   get "/auth/google_oauth2/callback", to: "sessions#create"
   get "/auth/failure", to: "sessions#failure"

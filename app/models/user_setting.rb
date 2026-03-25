@@ -1,4 +1,6 @@
 class UserSetting < ApplicationRecord
+  belongs_to :user, optional: true
+
   validates :user_email, presence: true, uniqueness: true
 
   after_initialize :set_defaults, if: :new_record?
@@ -26,6 +28,14 @@ class UserSetting < ApplicationRecord
     !!self[:block_google_calendar_events]
   end
 
+  # Primary: look up by user_id (FK). Falls back to email string for legacy data.
+  def self.for_user(user)
+    find_or_create_by(user_id: user.id) do |s|
+      s.user_email = user.email
+    end
+  end
+
+  # Legacy helper kept for background jobs that still pass an email string.
   def self.for_email(email)
     find_or_create_by(user_email: email)
   end

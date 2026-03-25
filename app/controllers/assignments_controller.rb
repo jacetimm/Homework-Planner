@@ -1,11 +1,11 @@
 class AssignmentsController < ApplicationController
   def reestimate
-    unless session[:access_token]
+    unless current_user
       redirect_to root_path and return
     end
 
     course_work_id = params[:course_work_id].to_s
-    user_email     = session[:user_email].to_s
+    user_email = current_user.email
     used_for_assignment = AssignmentReestimate.where(user_email: user_email, course_work_id: course_work_id).count
     daily_remaining = AssignmentReestimate.remaining_today_for(user_email)
 
@@ -35,12 +35,12 @@ class AssignmentsController < ApplicationController
   end
 
   def set_estimate
-    unless session[:access_token]
+    unless current_user
       redirect_to root_path and return
     end
 
     course_work_id = params[:course_work_id].to_s
-    user_email     = session[:user_email].to_s
+    user_email = current_user.email
     minutes        = parse_duration_minutes(params[:minutes])
 
     if minutes > 0 && minutes <= 600

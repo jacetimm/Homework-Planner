@@ -2,7 +2,7 @@ class CrunchController < ApplicationController
   # GET /crunch/:course_work_id — direct link from notification email
   # Redirects to dashboard with ?open_crunch= so JS auto-opens the overlay.
   def show
-    unless session[:access_token]
+    unless current_user
       session[:return_to] = crunch_show_url(course_work_id: params[:course_work_id])
       redirect_to "/auth/google_oauth2" and return
     end
@@ -13,13 +13,13 @@ class CrunchController < ApplicationController
   # GET /crunch/:course_work_id/microtasks
   # Returns cached microtasks or generates fresh ones via Groq.
   def microtasks
-    unless session[:access_token]
+    unless current_user
       render json: { error: "Not logged in" }, status: :unauthorized and return
     end
 
     estimate = AssignmentEstimate.find_by(
       course_work_id: params[:course_work_id],
-      user_email:     session[:user_email]
+      user_email: current_user.email
     )
 
     unless estimate

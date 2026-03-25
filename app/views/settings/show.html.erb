@@ -9,7 +9,7 @@
     <%= form_with model: @user_setting, url: settings_path, method: :patch, class: "divide-y divide-slate-100", id: "preferences-form" do |f| %>
 
       <!-- Section 1: Study Schedule -->
-      <div class="p-8">
+      <div class="p-4 sm:p-8">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Daily Study Schedule</h3>
         <p class="text-sm text-slate-500 mb-5">Set your preferred window for evening homework. Assignments will be scheduled during this block.</p>
 
@@ -41,7 +41,7 @@
       </div>
 
       <!-- Section 2: Break Intervals -->
-      <div class="p-8 bg-slate-50/50">
+      <div class="p-4 sm:p-8 bg-slate-50/50">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Pomodoro & Breaks</h3>
         <p class="text-sm text-slate-500 mb-5">How often do you need a breather?</p>
 
@@ -68,7 +68,7 @@
       </div>
 
       <!-- Section 3: Hard Subjects -->
-      <div class="p-8">
+      <div class="p-4 sm:p-8">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Challenging Classes</h3>
         <p class="text-sm text-slate-500 mb-5">Toggle classes you struggle with. The planner will allocate <span class="font-semibold text-slate-700">25% more time</span> for these subjects.</p>
 
@@ -96,7 +96,7 @@
       </div>
 
       <!-- Section 4: Extracurriculars -->
-      <div class="p-8 bg-slate-50/50">
+      <div class="p-4 sm:p-8 bg-slate-50/50">
         <div class="flex items-center justify-between mb-5">
           <div>
             <h3 class="text-base font-bold text-slate-900 mb-0.5">Extracurricular Blocks</h3>
@@ -157,7 +157,7 @@
       </div>
 
       <!-- Section 5: Google Calendar -->
-      <div class="p-8">
+      <div class="p-4 sm:p-8">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Google Calendar Blocking</h3>
         <p class="text-sm text-slate-500 mb-5">Block homework time around specific Google Calendar events. Choose which calendars to include, then optionally filter out individual events by keyword.</p>
 
@@ -238,6 +238,26 @@
             </div>
             <p class="text-xs text-slate-400 mt-2">Example: keyword <code class="bg-slate-100 px-1 rounded">dentist</code> on <em>Any Calendar</em> ignores all events with that word.</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Section 6: Timezone -->
+      <div class="p-4 sm:p-8">
+        <h3 class="text-base font-bold text-slate-900 mb-0.5">Timezone</h3>
+        <p class="text-sm text-slate-500 mb-5">Used for scheduling, due-date urgency, and timeline time slots. Auto-detected from your browser on first login.</p>
+
+        <div class="max-w-sm">
+          <label class="block text-sm font-bold text-slate-700 mb-1.5" for="user_timezone">Your Timezone</label>
+          <%= select_tag :timezone,
+                options_for_select(
+                  ActiveSupport::TimeZone.all.sort_by(&:utc_offset).map { |tz|
+                    ["(#{tz.formatted_offset}) #{tz.name}", tz.name]
+                  },
+                  current_user.timezone.presence || "Eastern Time (US & Canada)"
+                ),
+                id: "user_timezone",
+                class: "w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" %>
+          <p class="text-xs text-slate-400 mt-2">Changes take effect on your next page load.</p>
         </div>
       </div>
 

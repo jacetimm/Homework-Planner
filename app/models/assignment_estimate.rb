@@ -1,4 +1,6 @@
 class AssignmentEstimate < ApplicationRecord
+  belongs_to :user, optional: true
+
   validates :course_work_id, presence: true
   validates :user_email,     presence: true
   validates :estimated_minutes, presence: true, numericality: { greater_than: 0 }

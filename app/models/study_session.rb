@@ -1,4 +1,6 @@
 class StudySession < ApplicationRecord
+  belongs_to :user, optional: true
+
   validates :course_work_id, :user_email, :assignment_title, presence: true
 
   scope :completed, -> { where.not(actual_minutes: nil) }

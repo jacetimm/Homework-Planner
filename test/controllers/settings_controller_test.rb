@@ -1,13 +1,8 @@
 require "test_helper"
 
 class SettingsControllerTest < ActionDispatch::IntegrationTest
-  test "should get show" do
-    get settings_show_url
-    assert_response :success
-  end
-
-  test "should get update" do
-    get settings_update_url
-    assert_response :success
+  test "redirects to root when not logged in" do
+    get settings_path
+    assert_redirected_to root_path
   end
 end

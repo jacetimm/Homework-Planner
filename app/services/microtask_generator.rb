@@ -230,16 +230,6 @@ class MicrotaskGenerator
   end
 
   def resolve_api_key
-    env_key = ENV["GROQ_API_KEY"].to_s.strip
-    return env_key if env_key.present?
-
-    env_file = File.join(defined?(Rails) ? Rails.root.to_s : Dir.pwd, ".env")
-    return nil unless File.exist?(env_file)
-
-    File.foreach(env_file) do |line|
-      next unless line.start_with?("GROQ_API_KEY=")
-      return line.split("=", 2).last.to_s.strip
-    end
-    nil
+    Rails.application.credentials.groq_api_key.to_s.strip.presence
   end
 end

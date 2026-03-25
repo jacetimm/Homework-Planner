@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_24_000002) do
   create_table "assignment_alerts", force: :cascade do |t|
     t.string "user_email", null: false
     t.string "course_work_id", null: false
@@ -18,7 +18,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
     t.datetime "sent_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.index ["user_email", "course_work_id", "alert_type", "sent_at"], name: "idx_assignment_alerts_dedup"
+    t.index ["user_id"], name: "index_assignment_alerts_on_user_id"
   end
 
   create_table "assignment_estimates", force: :cascade do |t|
@@ -36,7 +38,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
     t.string "title"
     t.date "due_date"
     t.string "class_name"
+    t.integer "user_id"
     t.index ["course_work_id", "user_email"], name: "index_assignment_estimates_on_course_work_id_and_user_email", unique: true
+    t.index ["user_id"], name: "index_assignment_estimates_on_user_id"
   end
 
   create_table "assignment_reestimates", force: :cascade do |t|
@@ -44,8 +48,29 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
     t.string "user_email", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.index ["user_email", "course_work_id"], name: "index_assignment_reestimates_on_user_email_and_course_work_id"
     t.index ["user_email", "created_at"], name: "index_assignment_reestimates_on_user_email_and_created_at"
+    t.index ["user_id"], name: "index_assignment_reestimates_on_user_id"
+  end
+
+  create_table "calendar_caches", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.json "raw_blocks_data", default: []
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_calendar_caches_on_user_id", unique: true
+  end
+
+  create_table "classroom_caches", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.json "courses_data", default: []
+    t.json "assignments_data", default: []
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_classroom_caches_on_user_id", unique: true
   end
 
   create_table "study_sessions", force: :cascade do |t|
@@ -58,7 +83,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
     t.datetime "started_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.index ["user_email", "course_work_id"], name: "index_study_sessions_on_user_email_and_course_work_id"
+    t.index ["user_id"], name: "index_study_sessions_on_user_id"
   end
 
   create_table "user_settings", force: :cascade do |t|
@@ -78,6 +105,31 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_100001) do
     t.integer "max_minutes_per_subject", default: 45
     t.integer "streak_count", default: 0, null: false
     t.date "streak_last_date"
+    t.integer "user_id"
     t.index ["user_email"], name: "index_user_settings_on_user_email"
+    t.index ["user_id"], name: "index_user_settings_on_user_id", unique: true
   end
+
+  create_table "users", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "name"
+    t.string "avatar_url"
+    t.string "google_uid", null: false
+    t.text "access_token"
+    t.text "refresh_token"
+    t.datetime "token_expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "timezone", default: "Eastern Time (US & Canada)", null: false
+    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
+  end
+
+  add_foreign_key "assignment_alerts", "users"
+  add_foreign_key "assignment_estimates", "users"
+  add_foreign_key "assignment_reestimates", "users"
+  add_foreign_key "calendar_caches", "users"
+  add_foreign_key "classroom_caches", "users"
+  add_foreign_key "study_sessions", "users"
+  add_foreign_key "user_settings", "users"
 end
