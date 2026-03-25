@@ -2,6 +2,10 @@ class UserSetting < ApplicationRecord
   belongs_to :user, optional: true
 
   validates :user_email, presence: true, uniqueness: true
+  validates :break_frequency, numericality: { only_integer: true, in: 10..120 }, allow_nil: true
+  validates :break_duration,  numericality: { only_integer: true, in: 1..30 },   allow_nil: true
+  validates :max_minutes_per_subject, numericality: { only_integer: true, in: 15..180 }, allow_nil: true
+  validate  :study_window_valid
 
   after_initialize :set_defaults, if: :new_record?
 
@@ -54,6 +58,14 @@ class UserSetting < ApplicationRecord
   end
 
   private
+
+  def study_window_valid
+    return if study_start_time.blank? || study_end_time.blank?
+
+    if study_end_time <= study_start_time
+      errors.add(:study_end_time, "must be after start time")
+    end
+  end
 
   def set_defaults
     # Defaults provided in requirements
