@@ -26,10 +26,16 @@ module HomeworkPlanner
     config.active_record.time_zone_aware_attributes = true
 
     # ActiveRecord Encryption for storing OAuth tokens on the User model.
-    # Override with real random values via ENV in production.
-    config.active_record.encryption.primary_key        = ENV.fetch("AR_ENC_PRIMARY_KEY",        "iocrqWcV17dpRUwL91SbKjTvmF4GZc8z")
-    config.active_record.encryption.deterministic_key  = ENV.fetch("AR_ENC_DETERMINISTIC_KEY",  "QTCTNMTACECMn1ewlggmLKkOWsjoSo7E")
-    config.active_record.encryption.key_derivation_salt = ENV.fetch("AR_ENC_KEY_DERIVATION_SALT", "ugegme6Gb7QiJPjKxspBCamNeZxM5Hue")
+    # In production these MUST be set via ENV. Development uses fallback defaults.
+    if Rails.env.production?
+      config.active_record.encryption.primary_key         = ENV.fetch("AR_ENC_PRIMARY_KEY")
+      config.active_record.encryption.deterministic_key   = ENV.fetch("AR_ENC_DETERMINISTIC_KEY")
+      config.active_record.encryption.key_derivation_salt = ENV.fetch("AR_ENC_KEY_DERIVATION_SALT")
+    else
+      config.active_record.encryption.primary_key         = ENV.fetch("AR_ENC_PRIMARY_KEY",         "dev_only_iocrqWcV17dpRUwL91SbKjTvmF4GZc8z")
+      config.active_record.encryption.deterministic_key   = ENV.fetch("AR_ENC_DETERMINISTIC_KEY",   "dev_only_QTCTNMTACECMn1ewlggmLKkOWsjoSo7E")
+      config.active_record.encryption.key_derivation_salt = ENV.fetch("AR_ENC_KEY_DERIVATION_SALT", "dev_only_ugegme6Gb7QiJPjKxspBCamNeZxM5Hue")
+    end
 
     # config.eager_load_paths << Rails.root.join("extras")
   end

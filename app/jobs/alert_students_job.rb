@@ -48,10 +48,17 @@ class AlertStudentsJob < ApplicationJob
   private
 
   def crunch_url_for(course_work_id)
-    host = ENV.fetch("APP_HOST", "localhost:3000")
+    host = if Rails.env.production?
+             ENV.fetch("APP_HOST") # fail loudly if missing in production
+           else
+             ENV.fetch("APP_HOST", "localhost:3000")
+           end
     Rails.application.routes.url_helpers.crunch_show_url(
       course_work_id: course_work_id, host: host
     )
+  rescue KeyError
+    Rails.logger.error("[AlertStudentsJob] APP_HOST env var is not set — cannot generate email links")
+    nil
   rescue StandardError
     nil
   end

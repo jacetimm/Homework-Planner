@@ -10,10 +10,6 @@ Rails.application.config.middleware.use OmniAuth::Builder do
     # Allows re-using a session that already has Classroom scopes when Calendar is added
     include_granted_scopes: true,
     # Prevents a second crash in some omniauth-google-oauth2 versions during JWT decode
-    skip_jwt: false,
-    # This is the exact fix for the nil.bytesize crash in OmniAuth without
-    # requiring changes to the user's browser cookie settings.
-    # Telling the provider to ignore state validation prevents it from trying to secure_compare a nil state.
-    provider_ignores_state: true
+    skip_jwt: false
   }
 end
