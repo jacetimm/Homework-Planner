@@ -32,44 +32,50 @@
     </svg>
   </summary>
 
-  <div class="px-4 pb-4 pt-2.5 border-t border-slate-100 bg-slate-50/50 space-y-2.5">
-    <% if @flags&.crunch_mode? %>
-    <button class="crunch-btn w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition active:scale-95 <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white' %>"
-      data-course-work-id="<%= a[:course_work_id] %>"
-      data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
-      data-course="<%= CGI.escapeHTML(a[:course].to_s) %>"
-      data-minutes="<%= a[:estimated_minutes].to_i %>"
-      data-due="<%= a[:due_date] %>">
-      &#9889; Crunch Mode
-    </button>
-    <% end %>
+  <div class="px-4 pb-3.5 pt-2.5 border-t border-slate-100 bg-slate-50/50 space-y-2">
 
-    <% if a[:assignment_link].present? %>
-    <a href="<%= a[:assignment_link] %>" target="_blank" rel="noopener"
-       class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition active:scale-95">
-      Open in Classroom
-      <svg class="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-    </a>
-    <% end %>
-
-    <% if @flags&.reestimate? %>
-    <div class="flex items-center gap-2">
-      <%= button_to "↺ Re-estimate",
-        reestimate_assignment_path(a[:course_work_id]),
-        method: :post,
-        data: { turbo: false },
-        disabled: a[:reestimate_disabled],
-        class: "flex-1 py-2.5 rounded-xl text-xs font-bold border transition text-center #{a[:reestimate_disabled] ? 'border-slate-200 text-slate-400 bg-slate-100 cursor-not-allowed' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer'}" %>
+    <%# Primary action row: Crunch + Open in Classroom %>
+    <% if @flags&.crunch_mode? || a[:assignment_link].present? %>
+    <div class="flex gap-2">
+      <% if @flags&.crunch_mode? %>
+      <button class="crunch-btn flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition active:scale-95 <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white' %>"
+        data-course-work-id="<%= a[:course_work_id] %>"
+        data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
+        data-course="<%= CGI.escapeHTML(a[:course].to_s) %>"
+        data-minutes="<%= a[:estimated_minutes].to_i %>"
+        data-due="<%= a[:due_date] %>">
+        &#9889; Crunch
+      </button>
+      <% end %>
+      <% if a[:assignment_link].present? %>
+      <a href="<%= a[:assignment_link] %>" target="_blank" rel="noopener"
+         class="<%= @flags&.crunch_mode? ? '' : 'flex-1' %> flex items-center justify-center gap-1 py-2 px-3 rounded-xl text-xs font-bold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition active:scale-95 whitespace-nowrap">
+        Classroom
+        <svg class="w-3 h-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      </a>
+      <% end %>
     </div>
     <% end %>
 
-    <form action="<%= set_assignment_estimate_path(a[:course_work_id]) %>" method="post" data-turbo="false" class="flex items-center gap-2">
-      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-      <span class="text-xs text-slate-500 font-semibold whitespace-nowrap">My estimate</span>
-      <input type="text" name="minutes" value="<%= format_minutes(a[:full_assignment_minutes]) %>" placeholder="45m"
-             class="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
-      <button type="submit" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">Set</button>
-    </form>
+    <%# Estimate row: re-estimate + manual override %>
+    <div class="flex items-center gap-2">
+      <% if @flags&.reestimate? %>
+      <%= button_to "↺",
+        reestimate_assignment_path(a[:course_work_id]),
+        method: :post,
+        data: { turbo: false },
+        title: a[:reestimate_tooltip],
+        disabled: a[:reestimate_disabled],
+        class: "py-2 px-3 rounded-xl text-xs font-bold border transition #{a[:reestimate_disabled] ? 'border-slate-200 text-slate-300 bg-slate-100 cursor-not-allowed' : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50 cursor-pointer'}" %>
+      <% end %>
+      <form action="<%= set_assignment_estimate_path(a[:course_work_id]) %>" method="post" data-turbo="false" class="flex items-center gap-2 flex-1">
+        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <span class="text-xs text-slate-400 font-medium whitespace-nowrap">My est.</span>
+        <input type="text" name="minutes" value="<%= format_minutes(a[:full_assignment_minutes]) %>" placeholder="45m"
+               class="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 text-center focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent">
+        <button type="submit" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">Set</button>
+      </form>
+    </div>
 
     <% if @flags&.split_view? && a[:split_plan]&.size.to_i > 1 %>
       <div class="flex flex-wrap gap-1.5 items-center pt-0.5">
