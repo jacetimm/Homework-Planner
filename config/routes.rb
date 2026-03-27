@@ -24,4 +24,7 @@ Rails.application.routes.draw do
   get "/auth/google_oauth2/callback", to: "sessions#create"
   get "/auth/failure", to: "sessions#failure"
   delete "/logout", to: "sessions#destroy", as: :logout
+
+  get "/privacy", to: "pages#privacy"
+get "/terms", to: "pages#terms"
 end
