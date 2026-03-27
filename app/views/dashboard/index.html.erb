@@ -3,9 +3,9 @@
   <% if @onboarding %>
     <div id="onboarding-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-y-auto max-h-[90vh]">
-        <!-- Progress dots (8 steps) -->
+        <!-- Progress dots (9 steps) -->
         <div class="flex justify-center gap-2 mb-8">
-          <% (1..8).each do |n| %>
+          <% (1..9).each do |n| %>
             <span class="onb-dot w-2 h-2 rounded-full transition-colors <%= n == 1 ? 'bg-indigo-600' : 'bg-slate-200' %>" data-step="<%= n %>"></span>
           <% end %>
         </div>
@@ -157,8 +157,25 @@
           </div>
         </div>
 
-        <!-- Step 7: Feature preference -->
+        <!-- Step 7: Extracurriculars -->
         <div class="onb-step hidden" data-step="7">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">🏃</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Any extracurriculars?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">Sports, clubs, jobs — homework won't be scheduled during these times.</p>
+
+            <div id="onb-extras-container" class="space-y-3 mb-4"></div>
+
+            <button type="button" onclick="onbAddExtra()"
+                    class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-sm font-bold text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition">
+              + Add an activity
+            </button>
+            <p class="text-xs text-slate-400 mt-3 text-center">Leave empty to skip — you can add these later in Settings.</p>
+          </div>
+        </div>
+
+        <!-- Step 8: Feature preference -->
+        <div class="onb-step hidden" data-step="8">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">✨</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Want all features now?</h2>
@@ -181,8 +198,8 @@
           </div>
         </div>
 
-        <!-- Step 8: Done -->
-        <div class="onb-step hidden" data-step="8">
+        <!-- Step 9: Done -->
+        <div class="onb-step hidden" data-step="9">
           <div class="text-center mb-6">
             <div class="text-5xl mb-4">🎉</div>
             <h2 class="text-2xl font-extrabold text-slate-900 mb-3">You're all set!</h2>
@@ -207,8 +224,9 @@
 
     <script>
     var _onbCurrent  = 1;
-    var _onbTotal    = 8;
+    var _onbTotal    = 9;
     var _onbShowAll  = false;
+    var _onbExtraIdx = 0;
 
     function onbThemePick(val) {
       document.getElementById('onb-theme').value = val;
@@ -277,6 +295,55 @@
       }
     }
 
+    // ── Extracurricular helpers ──────────────────────────────────────────────
+    var ONB_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+    function onbAddExtra() {
+      var idx = _onbExtraIdx++;
+      var pillsHtml = ONB_DAYS.map(function(d) {
+        return '<button type="button" onclick="onbToggleDayPill(this)" data-day="' + d + '" ' +
+          'class="onb-day-pill px-2.5 py-1 rounded-lg text-xs font-bold border transition ' +
+          'bg-white text-slate-500 border-slate-300 hover:border-indigo-400 hover:text-indigo-600">' + d + '</button>';
+      }).join('');
+      var html = '<div class="onb-extra-row bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2" data-idx="' + idx + '">' +
+        '<div class="flex items-center gap-2">' +
+          '<input type="text" placeholder="Activity name (e.g. Soccer Practice)" ' +
+            'class="onb-extra-activity flex-1 rounded-lg border border-slate-300 text-sm px-3 py-1.5 focus:outline-none focus:border-indigo-400">' +
+          '<button type="button" onclick="this.parentNode.parentNode.remove()" ' +
+            'class="text-slate-300 hover:text-rose-500 transition flex-shrink-0" aria-label="Remove">' +
+            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+          '</button>' +
+        '</div>' +
+        '<div class="flex gap-2 items-center">' +
+          '<div class="flex-1">' +
+            '<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>' +
+            '<input type="time" class="onb-extra-start w-full rounded-lg border border-slate-300 text-sm px-2 py-1.5 focus:outline-none focus:border-indigo-400">' +
+          '</div>' +
+          '<div class="flex-1">' +
+            '<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>' +
+            '<input type="time" class="onb-extra-end w-full rounded-lg border border-slate-300 text-sm px-2 py-1.5 focus:outline-none focus:border-indigo-400">' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Days</label>' +
+          '<div class="onb-day-pill-group flex flex-wrap gap-1.5">' + pillsHtml + '</div>' +
+        '</div>' +
+      '</div>';
+      document.getElementById('onb-extras-container').insertAdjacentHTML('beforeend', html);
+    }
+
+    function onbToggleDayPill(btn) {
+      var active = btn.classList.contains('bg-indigo-600');
+      if (active) {
+        btn.classList.remove('bg-indigo-600','text-white','border-indigo-600','shadow-sm');
+        btn.classList.add('bg-white','text-slate-500','border-slate-300','hover:border-indigo-400','hover:text-indigo-600');
+      } else {
+        btn.classList.remove('bg-white','text-slate-500','border-slate-300','hover:border-indigo-400','hover:text-indigo-600');
+        btn.classList.add('bg-indigo-600','text-white','border-indigo-600','shadow-sm');
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     async function onbComplete() {
       var csrf     = document.querySelector('meta[name="csrf-token"]')?.content || '';
       var start    = document.getElementById('onb-start-time')?.value      || '';
@@ -299,6 +366,24 @@
       form.append('show_all_features',      showAll);
       form.append('color_theme',            theme);
       subjects.forEach(function(s) { form.append('hard_subjects[]', s); });
+
+      // Collect extracurricular blocks
+      var extraRows = document.querySelectorAll('#onb-extras-container .onb-extra-row');
+      var extraCount = 0;
+      extraRows.forEach(function(row) {
+        var activity = (row.querySelector('.onb-extra-activity')?.value || '').trim();
+        if (!activity) return; // skip empty rows
+        var startVal = row.querySelector('.onb-extra-start')?.value || '';
+        var endVal   = row.querySelector('.onb-extra-end')?.value   || '';
+        var days = Array.from(row.querySelectorAll('.onb-day-pill.bg-indigo-600'))
+                       .map(function(b) { return b.dataset.day; }).join(', ');
+        var prefix = 'extracurricular_blocks[' + extraCount + ']';
+        form.append(prefix + '[activity]',   activity);
+        form.append(prefix + '[start_time]', startVal);
+        form.append(prefix + '[end_time]',   endVal);
+        form.append(prefix + '[days]',       days);
+        extraCount++;
+      });
 
       try {
         await fetch('<%= complete_onboarding_path %>', {
@@ -604,9 +689,9 @@
                     wlabel = if total_minutes > 90 then "Heavy" elsif total_minutes > 45 then "Medium" elsif total_minutes > 0 then "Light" else nil end
                     wbar_pct = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
                     wbar_color = wlabel == "Heavy" ? "bg-rose-400" : (wlabel == "Medium" ? "bg-amber-400" : "bg-emerald-400")
-                    wlabel_color = wlabel == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (wlabel == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
+                    wlabel_color = wlabel == "Heavy" ? "weekly-workload-badge weekly-workload-badge--heavy text-rose-600 bg-rose-50 border-transparent" : (wlabel == "Medium" ? "weekly-workload-badge weekly-workload-badge--medium text-amber-600 bg-amber-50 border-transparent" : "weekly-workload-badge weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   %>
-                  <div class="<%= is_today ? 'ring-2 ring-indigo-400 bg-indigo-50/60' : 'bg-white' %> rounded-2xl p-3.5 border border-slate-200 relative">
+                  <div class="<%= is_today ? 'ring-2 ring-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20' : 'bg-white dark:bg-slate-800/70' %> rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700 relative">
                     <% if is_today %>
                       <span class="text-[9px] font-extrabold uppercase tracking-widest text-indigo-500">Today</span>
                     <% end %>
@@ -1032,7 +1117,7 @@
 
                   bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
                   bar_color  = label == "Heavy" ? "bg-rose-400" : (label == "Medium" ? "bg-amber-400" : "bg-emerald-400")
-                  label_color = label == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (label == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
+                  label_color = label == "Heavy" ? "weekly-workload-badge weekly-workload-badge--heavy text-rose-600 bg-rose-50 border-transparent" : (label == "Medium" ? "weekly-workload-badge weekly-workload-badge--medium text-amber-600 bg-amber-50 border-transparent" : "weekly-workload-badge weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20" : "bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700/70"
                 %>
 
