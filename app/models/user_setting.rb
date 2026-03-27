@@ -82,7 +82,6 @@ class UserSetting < ApplicationRecord
     self.ignored_google_calendar_ids ||= []
     self.calendar_ignore_rules ||= []
     self.max_minutes_per_subject ||= 45
-    self.color_theme ||= "auto"
     self.onboarding_completed = false
   end
 end

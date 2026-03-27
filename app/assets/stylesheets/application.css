@@ -123,8 +123,24 @@ html.dark .streak-card__icon {
   border-color: #5a3a24;
 }
 
+.weekly-workload-badge--heavy {
+  box-shadow: none;
+}
+
+.weekly-workload-badge--medium {
+  box-shadow: none;
+}
+
 .weekly-workload-badge--light {
   box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.08);
+}
+
+html.dark .weekly-workload-badge--heavy {
+  box-shadow: none;
+}
+
+html.dark .weekly-workload-badge--medium {
+  box-shadow: none;
 }
 
 html.dark .weekly-workload-badge--light {

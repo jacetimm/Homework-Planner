@@ -34,6 +34,19 @@ class OnboardingController < ApplicationController
       setting.hard_subjects = Array(params[:hard_subjects]).reject(&:blank?)
     end
 
+    extracurricular_raw = params[:extracurricular_blocks]
+    if extracurricular_raw.present?
+      setting.extracurricular_blocks = extracurricular_raw.values.filter_map do |block|
+        next if block[:activity].blank?
+        {
+          "activity"   => block[:activity].to_s.strip,
+          "start_time" => block[:start_time].to_s,
+          "end_time"   => block[:end_time].to_s,
+          "days"       => block[:days].to_s
+        }
+      end
+    end
+
     setting.onboarding_completed = true
     setting.save(validate: false)
 

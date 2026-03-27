@@ -9,12 +9,40 @@
     <%# Apply theme immediately before paint to avoid flash of wrong theme %>
     <script>
     (function() {
-      var theme = '<%= (@user_setting || current_user&.user_setting)&.color_theme&.gsub("'", "") || "auto" %>';
+      var serverTheme = '<%= (@user_setting || current_user&.user_setting)&.color_theme&.gsub("'", "") || "auto" %>';
+      var isOnboarding = <%= current_user && !(@user_setting || current_user.user_setting)&.onboarding_completed? ? 'true' : 'false' %>;
+      var theme = 'auto';
+      
+      try {
+        var draft = localStorage.getItem('onb_draft_theme');
+        if (draft) {
+          theme = draft;
+        } else if (isOnboarding) {
+          theme = 'light'; // Neutral default before choice is made
+        } else {
+          theme = serverTheme;
+        }
+      } catch(e) {
+        theme = isOnboarding ? 'light' : serverTheme;
+      }
+      
       var dark  = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      if (dark) document.documentElement.classList.add('dark');
+      if (dark) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
       if (theme === 'auto') {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-          document.documentElement.classList.toggle('dark', e.matches);
+          if (e.matches) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          }
         });
       }
     })();
