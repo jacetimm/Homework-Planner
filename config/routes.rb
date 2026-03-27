@@ -26,5 +26,5 @@ Rails.application.routes.draw do
   delete "/logout", to: "sessions#destroy", as: :logout
 
   get "/privacy", to: "pages#privacy"
-get "/terms", to: "pages#terms"
+  get "/terms", to: "pages#terms"
 end
