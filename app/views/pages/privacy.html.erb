@@ -1,19 +1,54 @@
-<div class="max-w-2xl mx-auto py-12 px-4">
-  <h1 class="text-3xl font-bold mb-6">Privacy Policy</h1>
-  <p class="text-sm text-slate-500 mb-6">Last updated: March 25, 2026</p>
+<div class="min-h-screen bg-slate-50 py-16 px-4 font-sans">
+  <div class="max-w-2xl mx-auto">
 
-  <h2 class="text-xl font-semibold mt-6 mb-2">What data we access</h2>
-  <p class="mb-4">Homework Planner accesses your Google Classroom assignments, Google Calendar events, and Google Drive file metadata (read-only). We never modify, submit, or delete anything in your Google account.</p>
+    <!-- Back link -->
+    <div class="mb-8">
+      <%= link_to "← Back", root_path, class: "text-sm font-semibold text-slate-400 hover:text-indigo-600 transition-colors" %>
+    </div>
 
-  <h2 class="text-xl font-semibold mt-6 mb-2">How we use your data</h2>
-  <p class="mb-4">Your assignment data is used solely to generate your nightly study plan, time estimates, and scheduling. Your data is stored in our database to provide the service and is never shared with third parties.</p>
+    <!-- Header -->
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1 mb-4">
+        <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Legal</span>
+      </div>
+      <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Privacy Policy</h1>
+      <p class="text-sm text-slate-400 font-medium">Last updated: March 25, 2026</p>
+    </div>
 
-  <h2 class="text-xl font-semibold mt-6 mb-2">Data storage</h2>
-  <p class="mb-4">Your data is stored on a secure, private server. Google OAuth tokens are encrypted at rest. We do not sell or share your personal information.</p>
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
 
-  <h2 class="text-xl font-semibold mt-6 mb-2">Deleting your data</h2>
-  <p class="mb-4">You can request deletion of your account and all associated data by emailing jacetimm@gmail.com.</p>
+      <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">What data we access</h2>
+        <p class="text-sm text-slate-600 leading-relaxed">Homework Planner accesses your Google Classroom assignments, Google Calendar events, and Google Drive file metadata (read-only). We never modify, submit, or delete anything in your Google account.</p>
+      </div>
 
-  <h2 class="text-xl font-semibold mt-6 mb-2">Contact</h2>
-  <p class="mb-4">Questions? Email jacetimm@gmail.com.</p>
+      <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">How we use your data</h2>
+        <p class="text-sm text-slate-600 leading-relaxed">Your assignment data is used solely to generate your nightly study plan, time estimates, and scheduling. Your data is stored in our database to provide the service and is never shared with third parties.</p>
+      </div>
+
+      <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">Data storage</h2>
+        <p class="text-sm text-slate-600 leading-relaxed">Your data is stored on a secure, private server. Google OAuth tokens are encrypted at rest. We do not sell or share your personal information.</p>
+      </div>
+
+      <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">Deleting your data</h2>
+        <p class="text-sm text-slate-600 leading-relaxed">You can request deletion of your account and all associated data by emailing <a href="mailto:jacetimm@gmail.com" class="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">jacetimm@gmail.com</a>.</p>
+      </div>
+
+      <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">Contact</h2>
+        <p class="text-sm text-slate-600 leading-relaxed">Questions? Email <a href="mailto:jacetimm@gmail.com" class="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">jacetimm@gmail.com</a>.</p>
+      </div>
+
+    </div>
+
+    <!-- Footer links -->
+    <p class="mt-8 text-center text-xs text-slate-400">
+      Also see our <%= link_to "Terms of Service", "/terms", class: "font-semibold text-slate-500 hover:text-indigo-600 underline underline-offset-2 transition-colors" %>.
+    </p>
+
+  </div>
 </div>

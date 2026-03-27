@@ -3,10 +3,10 @@
   <% if @onboarding %>
     <div id="onboarding-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-y-auto max-h-[90vh]">
-        <!-- Progress dots -->
+        <!-- Progress dots (8 steps) -->
         <div class="flex justify-center gap-2 mb-8">
-          <% (1..7).each do |n| %>
-            <span class="onb-dot w-2.5 h-2.5 rounded-full transition-colors <%= n == 1 ? 'bg-indigo-600' : 'bg-slate-200' %>" data-step="<%= n %>"></span>
+          <% (1..8).each do |n| %>
+            <span class="onb-dot w-2 h-2 rounded-full transition-colors <%= n == 1 ? 'bg-indigo-600' : 'bg-slate-200' %>" data-step="<%= n %>"></span>
           <% end %>
         </div>
 
@@ -20,8 +20,32 @@
           </div>
         </div>
 
-        <!-- Step 2: Study hours -->
+        <!-- Step 2: Theme -->
         <div class="onb-step hidden" data-step="2">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">🎨</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">How do you want the app to look?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">You can change this anytime in Settings.</p>
+            <div class="flex gap-3">
+              <% [["light","☀️","Light"],["dark","🌙","Dark"],["auto","💻","Auto"]].each_with_index do |(val, icon, label), i| %>
+                <button type="button"
+                        id="onb-theme-<%= val %>"
+                        onclick="onbThemePick('<%= val %>')"
+                        class="onb-theme-btn flex-1 rounded-2xl border-2 py-4 text-center transition <%= i == 2 ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300' %>">
+                  <div class="text-2xl mb-1"><%= icon %></div>
+                  <div class="text-xs font-bold"><%= label %></div>
+                  <% if val == "auto" %>
+                    <div class="text-[10px] text-slate-400 mt-0.5">device setting</div>
+                  <% end %>
+                </button>
+              <% end %>
+            </div>
+            <input type="hidden" id="onb-theme" value="auto">
+          </div>
+        </div>
+
+        <!-- Step 3: Study hours -->
+        <div class="onb-step hidden" data-step="3">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">⏰</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">When do you usually study?</h2>
@@ -30,7 +54,10 @@
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1.5">Study starts</label>
                 <select id="onb-start-time" class="w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-slate-800 font-semibold">
-                  <% ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"].each do |t| %>
+                  <%
+                    start_slots = (6..21).flat_map { |h| ["%02d:00" % h, "%02d:30" % h] }
+                  %>
+                  <% start_slots.each do |t| %>
                     <option value="<%= t %>" <%= t == '16:00' ? 'selected' : '' %>><%= Time.parse(t).strftime("%-I:%M %p") %></option>
                   <% end %>
                 </select>
@@ -38,18 +65,22 @@
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1.5">Study ends</label>
                 <select id="onb-end-time" class="w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-slate-800 font-semibold">
-                  <% ["14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00","23:59"].each do |t| %>
-                    <option value="<%= t %>" <%= t == '22:00' ? 'selected' : '' %>><%= t == '23:59' ? 'Midnight' : Time.parse(t).strftime("%-I:%M %p") %></option>
+                  <%
+                    end_slots  = (12..23).flat_map { |h| ["%02d:00" % h, "%02d:30" % h] }
+                    end_slots += (0..3).flat_map  { |h| h == 3 ? ["%02d:00" % h] : ["%02d:00" % h, "%02d:30" % h] }
+                  %>
+                  <% end_slots.each do |t| %>
+                    <option value="<%= t %>" <%= t == '22:00' ? 'selected' : '' %>><%= Time.parse(t).strftime("%-I:%M %p") %></option>
                   <% end %>
                 </select>
               </div>
             </div>
-            <p class="text-xs text-slate-400 mt-3 text-center">You can change these anytime in Settings.</p>
+            <p class="text-xs text-slate-400 mt-3 text-center">End times like 1:00 AM or 2:00 AM are fine — the app handles midnight crossings.</p>
           </div>
         </div>
 
-        <!-- Step 3: Breaks -->
-        <div class="onb-step hidden" data-step="3">
+        <!-- Step 4: Breaks -->
+        <div class="onb-step hidden" data-step="4">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">☕</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">How often do you want breaks?</h2>
@@ -85,8 +116,8 @@
           </div>
         </div>
 
-        <!-- Step 4: Hard subjects -->
-        <div class="onb-step hidden" data-step="4">
+        <!-- Step 5: Hard subjects -->
+        <div class="onb-step hidden" data-step="5">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">🧠</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Which classes are hardest?</h2>
@@ -107,8 +138,8 @@
           </div>
         </div>
 
-        <!-- Step 5: Max study per subject -->
-        <div class="onb-step hidden" data-step="5">
+        <!-- Step 6: Max study per subject -->
+        <div class="onb-step hidden" data-step="6">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">⏱️</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Max time on one subject per night?</h2>
@@ -126,8 +157,8 @@
           </div>
         </div>
 
-        <!-- Step 6: Feature preference -->
-        <div class="onb-step hidden" data-step="6">
+        <!-- Step 7: Feature preference -->
+        <div class="onb-step hidden" data-step="7">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">✨</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Want all features now?</h2>
@@ -150,8 +181,8 @@
           </div>
         </div>
 
-        <!-- Step 7: Done -->
-        <div class="onb-step hidden" data-step="7">
+        <!-- Step 8: Done -->
+        <div class="onb-step hidden" data-step="8">
           <div class="text-center mb-6">
             <div class="text-5xl mb-4">🎉</div>
             <h2 class="text-2xl font-extrabold text-slate-900 mb-3">You're all set!</h2>
@@ -176,8 +207,22 @@
 
     <script>
     var _onbCurrent  = 1;
-    var _onbTotal    = 7;
+    var _onbTotal    = 8;
     var _onbShowAll  = false;
+
+    function onbThemePick(val) {
+      document.getElementById('onb-theme').value = val;
+      document.querySelectorAll('.onb-theme-btn').forEach(function(b) {
+        var active = b.id === 'onb-theme-' + val;
+        b.className = b.className
+          .replace(/border-indigo-500 bg-indigo-50 text-indigo-700|border-slate-200 text-slate-600 hover:border-indigo-300/g, '')
+          .trim();
+        b.className += active ? ' border-indigo-500 bg-indigo-50 text-indigo-700' : ' border-slate-200 text-slate-600 hover:border-indigo-300';
+      });
+      // Apply immediately so rest of onboarding shows in chosen theme
+      var dark = val === 'dark' || (val === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('dark', dark);
+    }
 
     function onbPillSelect(el, group) {
       var cls     = group === 'freq' ? 'onb-pill-freq' : 'onb-pill-dur';
@@ -215,7 +260,7 @@
       // Update progress dots
       document.querySelectorAll('.onb-dot').forEach(function(dot) {
         var active = parseInt(dot.dataset.step) <= _onbCurrent;
-        dot.className = 'onb-dot w-2.5 h-2.5 rounded-full transition-colors ' + (active ? 'bg-indigo-600' : 'bg-slate-200');
+        dot.className = 'onb-dot w-2 h-2 rounded-full transition-colors ' + (active ? 'bg-indigo-600' : 'bg-slate-200');
       });
 
       // Back button
@@ -223,11 +268,7 @@
 
       // Next/Done button label
       var btn = document.getElementById('onb-next');
-      if (_onbCurrent === 6) {
-        // Step 6 — user picks a card, button advances
-        btn.textContent = 'Next →';
-        btn.onclick = function() { onbNav(1); };
-      } else if (_onbCurrent === 7) {
+      if (_onbCurrent === _onbTotal) {
         btn.textContent = "Let's go!";
         btn.onclick = onbComplete;
       } else {
@@ -238,23 +279,25 @@
 
     async function onbComplete() {
       var csrf     = document.querySelector('meta[name="csrf-token"]')?.content || '';
-      var start    = document.getElementById('onb-start-time')?.value   || '';
-      var end      = document.getElementById('onb-end-time')?.value     || '';
-      var freq     = document.getElementById('onb-break-freq')?.value   || '45';
-      var dur      = document.getElementById('onb-break-dur')?.value    || '10';
-      var maxMin   = document.getElementById('onb-max-slider')?.value   || '45';
-      var showAll  = document.getElementById('onb-show-all')?.value     || '0';
+      var start    = document.getElementById('onb-start-time')?.value      || '';
+      var end      = document.getElementById('onb-end-time')?.value        || '';
+      var freq     = document.getElementById('onb-break-freq')?.value      || '45';
+      var dur      = document.getElementById('onb-break-dur')?.value       || '10';
+      var maxMin   = document.getElementById('onb-max-slider')?.value      || '45';
+      var showAll  = document.getElementById('onb-show-all')?.value        || '0';
+      var theme    = document.getElementById('onb-theme')?.value           || 'auto';
       var subjects = Array.from(
         document.querySelectorAll('input[name="onb_hard_subjects[]"]:checked')
       ).map(function(cb) { return cb.value; });
 
       var form = new FormData();
-      if (start)  form.append('study_start_time', start);
-      if (end)    form.append('study_end_time',   end);
-      form.append('break_frequency',       freq);
-      form.append('break_duration',        dur);
+      if (start) form.append('study_start_time', start);
+      if (end)   form.append('study_end_time',   end);
+      form.append('break_frequency',        freq);
+      form.append('break_duration',         dur);
       form.append('max_minutes_per_subject', maxMin);
-      form.append('show_all_features',     showAll);
+      form.append('show_all_features',      showAll);
+      form.append('color_theme',            theme);
       subjects.forEach(function(s) { form.append('hard_subjects[]', s); });
 
       try {
@@ -561,7 +604,7 @@
                     wlabel = if total_minutes > 90 then "Heavy" elsif total_minutes > 45 then "Medium" elsif total_minutes > 0 then "Light" else nil end
                     wbar_pct = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
                     wbar_color = wlabel == "Heavy" ? "bg-rose-400" : (wlabel == "Medium" ? "bg-amber-400" : "bg-emerald-400")
-                    wlabel_color = wlabel == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (wlabel == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "text-emerald-600 bg-emerald-50 border-emerald-100")
+                    wlabel_color = wlabel == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (wlabel == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   %>
                   <div class="<%= is_today ? 'ring-2 ring-indigo-400 bg-indigo-50/60' : 'bg-white' %> rounded-2xl p-3.5 border border-slate-200 relative">
                     <% if is_today %>
@@ -570,7 +613,7 @@
                     <p class="text-sm font-extrabold text-slate-800 <%= is_today ? 'mt-0.5' : '' %>"><%= date.strftime("%A") %></p>
                     <p class="text-xs text-slate-500"><%= date.strftime("%b %-d") %></p>
                     <% if assignment_count > 0 %>
-                      <div class="w-full h-1.5 bg-slate-200 rounded-full mt-2.5 overflow-hidden">
+                      <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2.5 overflow-hidden">
                         <div class="<%= wbar_color %> h-full rounded-full" style="width: <%= wbar_pct %>%"></div>
                       </div>
                       <div class="flex items-end justify-between mt-1.5 gap-1">
@@ -666,10 +709,10 @@
             streak_active = @streak[:active]
             streak_dots = [ streak_count, 7 ].min
           %>
-          <div class="hidden md:block bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-4">
+          <div class="hidden md:block streak-card bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-2xl bg-orange-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
+                <div class="streak-card__icon w-11 h-11 rounded-2xl bg-orange-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
                   <span class="text-2xl leading-none select-none">🔥</span>
                 </div>
                 <div>
@@ -989,8 +1032,8 @@
 
                   bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
                   bar_color  = label == "Heavy" ? "bg-rose-400" : (label == "Medium" ? "bg-amber-400" : "bg-emerald-400")
-                  label_color = label == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (label == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "text-emerald-600 bg-emerald-50 border-emerald-100")
-                  card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60" : "bg-slate-50 hover:bg-slate-100"
+                  label_color = label == "Heavy" ? "text-rose-600 bg-rose-50 border-rose-100" : (label == "Medium" ? "text-amber-600 bg-amber-50 border-amber-100" : "weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
+                  card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20" : "bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700/70"
                 %>
 
                 <div class="<%= card_class %> rounded-2xl p-3.5 border border-slate-200 transition flex flex-col gap-2 relative">
@@ -1007,7 +1050,7 @@
                   </div>
 
                   <% if assignment_count > 0 %>
-                    <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div class="<%= bar_color %> h-full rounded-full transition-all" style="width: <%= bar_pct %>%"></div>
                     </div>
                     <div class="flex flex-wrap items-end justify-between gap-1">
@@ -2084,7 +2127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-      <div class="bg-white py-10 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
+      <div class="bg-white py-10 px-4 shadow-md sm:rounded-2xl sm:px-10 border border-slate-100">
         <%= button_to '/auth/google_oauth2', method: :post, data: { turbo: false }, class: "w-full flex justify-center py-3.5 px-4 border border-slate-200 rounded-xl shadow-sm bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all items-center group" do %>
           <svg class="h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -2095,6 +2138,12 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="group-hover:text-slate-900 transition-colors">Continue with Google</span>
         <% end %>
       </div>
+      <p class="mt-5 text-center text-xs text-slate-400">
+        By signing in, you agree to our
+        <%= link_to "Terms of Service", "/terms", class: "font-semibold text-slate-500 hover:text-indigo-600 underline underline-offset-2 transition-colors" %>
+        and
+        <%= link_to "Privacy Policy", "/privacy", class: "font-semibold text-slate-500 hover:text-indigo-600 underline underline-offset-2 transition-colors" %>.
+      </p>
     </div>
   </div>
 <% end %>

@@ -8,6 +8,25 @@
   <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden pb-20">
     <%= form_with model: @user_setting, url: settings_path, method: :patch, class: "divide-y divide-slate-100", id: "preferences-form" do |f| %>
 
+      <!-- Section 0: Appearance -->
+      <div class="p-4 sm:p-8">
+        <h3 class="text-base font-bold text-slate-900 mb-0.5">Appearance</h3>
+        <p class="text-sm text-slate-500 mb-5">Choose how the app looks. <em>Auto</em> follows your device setting.</p>
+        <div class="flex gap-3">
+          <% [["light","☀️","Light"],["dark","🌙","Dark"],["auto","💻","Auto"]].each do |val, icon, label| %>
+            <button type="button"
+                    data-theme-opt="<%= val %>"
+                    onclick="setThemeOpt('<%= val %>')"
+                    class="theme-opt-btn flex-1 rounded-2xl border-2 py-3 text-center transition
+                           <%= @user_setting.color_theme == val ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300' %>">
+              <div class="text-xl mb-0.5"><%= icon %></div>
+              <div class="text-xs font-bold"><%= label %></div>
+            </button>
+          <% end %>
+        </div>
+        <%= f.hidden_field :color_theme, id: "color-theme-input" %>
+      </div>
+
       <!-- Section 1: Study Schedule -->
       <div class="p-4 sm:p-8">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Daily Study Schedule</h3>
@@ -186,10 +205,10 @@
               <div id="calendar-list" class="space-y-2">
                 <% @google_calendars.each do |calendar| %>
                   <% is_included = !@user_setting.ignored_google_calendar_ids.include?(calendar[:id]) %>
-                  <label class="calendar-item flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition <%= is_included ? 'border-indigo-300 bg-indigo-50/60 hover:bg-indigo-50' : 'border-slate-200 hover:bg-slate-50' %>" data-name="<%= calendar[:summary].to_s.downcase %>">
+                  <label class="calendar-item flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition <%= is_included ? 'border-indigo-300 bg-indigo-50/60 hover:bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40' %>" data-name="<%= calendar[:summary].to_s.downcase %>">
                     <%= check_box_tag "user_setting[included_google_calendar_ids][]", calendar[:id], is_included, id: "included_calendar_#{calendar[:id].parameterize}", class: "h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0" %>
                     <p class="text-sm font-semibold text-slate-800 flex-1 truncate"><%= calendar[:summary] %></p>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 <%= calendar[:primary] ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200' %>">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 <%= calendar[:primary] ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-400 dark:border-indigo-700' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600' %>">
                       <%= calendar[:primary] ? "Primary" : "Shared" %>
                     </span>
                   </label>
@@ -216,7 +235,7 @@
             <div id="calendar-ignore-rules-container" class="space-y-2">
               <% existing_rules = (@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? } %>
               <% existing_rules.each_with_index do |rule, index| %>
-                <div class="calendar-ignore-rule bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3 items-end">
+                <div class="calendar-ignore-rule bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col sm:flex-row gap-3 items-end">
                   <div class="flex-1 w-full">
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Keyword</label>
                     <input type="text" name="user_setting[calendar_ignore_rules][<%= index %>][keyword]" value="<%= rule["keyword"] %>" class="w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. dentist">
@@ -280,7 +299,7 @@
   </div>
 
   <!-- Sticky Save Bar -->
-  <div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 shadow-lg">
+  <div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-700 shadow-lg">
     <div class="max-w-4xl mx-auto px-5 sm:px-8 py-3 flex items-center justify-between gap-4">
       <p class="text-sm text-slate-500 hidden sm:block">Customize how your homework gets scheduled.</p>
       <button type="submit" form="preferences-form" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl shadow-sm transition duration-150 cursor-pointer ml-auto">
@@ -296,6 +315,18 @@
   let calendarRuleIndex = <%= [(@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? }.size, 0].max %>;
   const calendarOptionsHtml = `<option value="">Any Calendar</option><%= j(@google_calendars.map { |calendar| "<option value=\"#{h(calendar[:id])}\">#{h(calendar[:summary])}</option>" }.join) %>`;
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  function setThemeOpt(val) {
+    document.getElementById('color-theme-input').value = val;
+    document.querySelectorAll('.theme-opt-btn').forEach(function(b) {
+      var active = b.dataset.themeOpt === val;
+      b.className = b.className.replace(/border-indigo-500 bg-indigo-50 text-indigo-700|border-slate-200 text-slate-600 hover:border-indigo-300/g, '').trim();
+      b.className += active ? ' border-indigo-500 bg-indigo-50 text-indigo-700' : ' border-slate-200 text-slate-600 hover:border-indigo-300';
+    });
+    // Apply immediately for live preview
+    var dark = val === 'dark' || (val === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+  }
 
   function toggleDayPill(btn) {
     const active = btn.classList.contains('bg-indigo-600');
@@ -353,7 +384,7 @@
   function addCalendarIgnoreRule() {
     const container = document.getElementById('calendar-ignore-rules-container');
     const html = `
-      <div class="calendar-ignore-rule bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3 items-end">
+      <div class="calendar-ignore-rule bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col sm:flex-row gap-3 items-end">
         <div class="flex-1 w-full">
           <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Keyword</label>
           <input type="text" name="user_setting[calendar_ignore_rules][${calendarRuleIndex}][keyword]" class="w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. dentist">

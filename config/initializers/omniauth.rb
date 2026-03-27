@@ -1,3 +1,11 @@
+OmniAuth.config.on_failure = proc { |env| SessionsController.action(:failure).call(env) }
+OmniAuth.config.failure_raise_out_environments = []
+
+# OmniAuth v2 requires POST for the initiation route by default.
+# Allow GET so a standard link to /auth/google_oauth2 still works.
+OmniAuth.config.allowed_request_methods = %i[post get]
+OmniAuth.config.silence_get_warning = true
+
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :google_oauth2,
            Rails.application.credentials.dig(:google, :client_id),

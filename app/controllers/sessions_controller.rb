@@ -1,4 +1,6 @@
 class SessionsController < ApplicationController
+  skip_before_action :verify_authenticity_token, only: :create
+
   def create
     auth = request.env["omniauth.auth"]
 
@@ -25,7 +27,17 @@ class SessionsController < ApplicationController
   end
 
   def failure
-    redirect_to root_path, alert: "Authentication failed."
+    message = params[:message].presence || request.env.dig("omniauth.error.type").to_s.presence
+
+    alert =
+      case message
+      when "invalid_client", "unauthorized"
+        "Google OAuth is misconfigured. Check the Google client ID and client secret in Rails credentials before signing in again."
+      else
+        "Authentication failed."
+      end
+
+    redirect_to root_path, alert: alert
   end
 
   def destroy

@@ -61,6 +61,7 @@ class SettingsController < ApplicationController
       :break_frequency,
       :break_duration,
       :max_minutes_per_subject,
+      :color_theme,
       :show_all_features,
       :block_google_calendar_events,
       included_google_calendar_ids: [],

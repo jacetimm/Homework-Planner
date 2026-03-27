@@ -10,7 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_26_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_26_000002) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "assignment_alerts", force: :cascade do |t|
     t.string "user_email", null: false
     t.string "course_work_id", null: false
@@ -111,6 +114,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_000001) do
     t.integer "visits_count", default: 0, null: false
     t.datetime "first_visited_at"
     t.date "last_visit_date"
+    t.string "color_theme", default: "auto", null: false
     t.index ["user_email"], name: "index_user_settings_on_user_email"
     t.index ["user_id"], name: "index_user_settings_on_user_id", unique: true
   end

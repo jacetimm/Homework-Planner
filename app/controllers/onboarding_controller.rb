@@ -22,6 +22,10 @@ class OnboardingController < ApplicationController
       setting.max_minutes_per_subject = val if val.in?(15..180)
     end
 
+    if params[:color_theme].present? && params[:color_theme].in?(%w[light dark auto])
+      setting.color_theme = params[:color_theme]
+    end
+
     if params[:show_all_features].present?
       setting.show_all_features = params[:show_all_features] == "1"
     end

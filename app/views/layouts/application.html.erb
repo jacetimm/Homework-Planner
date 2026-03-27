@@ -1,11 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html id="html-root">
   <head>
     <title><%= content_for(:title) || "Homework Planner" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <%# Apply theme immediately before paint to avoid flash of wrong theme %>
+    <script>
+    (function() {
+      var theme = '<%= (@user_setting || current_user&.user_setting)&.color_theme&.gsub("'", "") || "auto" %>';
+      var dark  = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+      if (theme === 'auto') {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          document.documentElement.classList.toggle('dark', e.matches);
+        });
+      }
+    })();
+    </script>
 
     <%= yield :head %>
 
@@ -18,11 +31,11 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 pb-16 md:pb-0">
+  <body class="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100 pb-16 md:pb-0">
 
     <% if current_user %>
       <!-- Shared Sticky Navbar (desktop only) -->
-      <nav class="hidden md:block bg-white border-b border-slate-200 sticky top-0 z-40">
+      <nav class="hidden md:block bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
         <div class="w-full max-w-[1700px] mx-auto px-6 sm:px-10 lg:px-16">
           <div class="flex items-center justify-between h-16">
 
@@ -32,7 +45,7 @@
                 <div class="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm group-hover:bg-indigo-700 transition">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                 </div>
-                <span class="font-bold text-slate-900 text-sm hidden sm:block tracking-tight">Homework Planner</span>
+                <span class="font-bold text-slate-900 dark:text-slate-100 text-sm hidden sm:block tracking-tight">Homework Planner</span>
               <% end %>
 
               <div class="hidden sm:flex items-center gap-0.5">
@@ -47,7 +60,7 @@
 
             <!-- User Info + Logout -->
             <div class="flex items-center gap-2">
-              <span class="hidden md:flex items-center text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+              <span class="hidden md:flex items-center text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-600">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 flex-shrink-0"></span>
                 <%= current_user.email %>
               </span>
@@ -118,7 +131,7 @@
 
     <% if current_user %>
       <!-- Mobile bottom nav bar (hidden on md+) -->
-      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 safe-area-inset-bottom">
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 safe-area-inset-bottom">
         <div class="flex">
           <button id="nav-btn-tonight" onclick="switchMobileTab('tonight')"
                   class="flex-1 flex flex-col items-center gap-0.5 py-2.5 <%= controller_name == 'dashboard' ? 'text-indigo-600' : 'text-slate-400' %> transition">

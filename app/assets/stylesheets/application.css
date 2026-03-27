@@ -21,3 +21,115 @@ body {
   padding: 0;
   background-color: #f8fafc;
 }
+
+/* ── Dark mode global overrides ──────────────────────────────────────────────
+   Applied when <html class="dark"> is set.
+   Palette: warm charcoal backgrounds, soft muted text — low contrast, blended.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+html.dark body {
+  background-color: #1a1d23;
+  color: #d1d9e5;
+}
+
+/* ── Backgrounds ─────────────────────────────────────────────────────────── */
+html.dark .bg-white            { background-color: #22262f; }  /* card surface      */
+html.dark .bg-slate-50         { background-color: #1a1d23; }  /* page bg           */
+html.dark .bg-slate-100        { background-color: #22262f; }  /* match card — no stripe */
+html.dark .bg-slate-200        { background-color: #2d3340; }  /* chip/tag bg       */
+html.dark .bg-slate-950        { background-color: #13151a; }
+
+/* Kill the bg-slate-50/50 stripes — Tailwind generates these as opacity variants */
+html.dark [class*="bg-slate-50\/"]  { background-color: transparent; }
+html.dark [class*="bg-slate-100\/"] { background-color: transparent; }
+
+/* High-opacity white overlays (e.g. bg-white/95 save bar) → dark surface */
+html.dark [class*="bg-white\/9"]    { background-color: rgba(34,38,47,0.95); }
+
+/* Accent backgrounds — desaturated so they don't shout */
+html.dark .bg-indigo-50        { background-color: #1f2040; }
+html.dark .bg-indigo-100       { background-color: #232448; }
+html.dark .bg-emerald-50       { background-color: #162620; }
+html.dark .bg-rose-50          { background-color: #261a1a; }
+html.dark .bg-amber-50         { background-color: #241e12; }
+html.dark .bg-indigo-600       { background-color: #4f46e5; }
+
+/* ── Text ────────────────────────────────────────────────────────────────── */
+html.dark .text-slate-900      { color: #e5edf8; }  /* primary — clearly readable          */
+html.dark .text-slate-800      { color: #d7e0ec; }
+html.dark .text-slate-700      { color: #c2cedc; }  /* secondary                           */
+html.dark .text-slate-600      { color: #acbacb; }  /* muted labels, descriptions          */
+html.dark .text-slate-500      { color: #93a2b5; }
+html.dark .text-slate-400      { color: #7d8ea2; }  /* timestamps, fine print              */
+html.dark .text-slate-300      { color: #67788d; }
+
+/* Accent text — toned down compared to pure -400 variants */
+html.dark .text-indigo-600     { color: #7b82e8; }
+html.dark .text-indigo-700     { color: #9299e0; }
+html.dark .text-indigo-800     { color: #a8aeda; }
+html.dark .text-emerald-500    { color: #4dba8f; }
+html.dark .text-emerald-600    { color: #3fa880; }
+html.dark .text-emerald-800    { color: #5bbfa0; }
+html.dark .text-rose-500       { color: #c97070; }
+html.dark .text-rose-600       { color: #c06070; }
+html.dark .text-rose-800       { color: #c88888; }
+html.dark .text-amber-500      { color: #b89040; }
+html.dark .text-amber-800      { color: #c8a050; }
+
+/* ── Borders — barely-there lines ───────────────────────────────────────── */
+html.dark .border-slate-100    { border-color: #262b34; }
+html.dark .border-slate-200    { border-color: #2d3340; }
+html.dark .border-slate-300    { border-color: #363d4a; }
+html.dark .border-indigo-300   { border-color: #3d3d80; }
+html.dark .border-indigo-500   { border-color: #4c4ca0; }
+html.dark .border-emerald-200  { border-color: #1a3530; }
+html.dark .border-rose-200     { border-color: #352020; }
+html.dark .border-amber-200    { border-color: #302510; }
+
+/* ── Dividers ────────────────────────────────────────────────────────────── */
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #262b34; }
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #2d3340; }
+
+/* ── Form inputs ─────────────────────────────────────────────────────────── */
+html.dark input[type="text"],
+html.dark input[type="time"],
+html.dark input[type="number"],
+html.dark input[type="email"],
+html.dark input[type="search"],
+html.dark select,
+html.dark textarea {
+  background-color: #1a1d23;
+  border-color: #363d4a;
+  color: #d7e0ec;
+  color-scheme: dark;
+}
+
+/* ── Shadows ─────────────────────────────────────────────────────────────── */
+html.dark .shadow-sm   { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.35); }
+html.dark .shadow-lg   { box-shadow: 0 8px 24px -4px rgba(0,0,0,0.5); }
+html.dark .shadow-2xl  { box-shadow: 0 20px 48px -8px rgba(0,0,0,0.6); }
+
+/* ── Onboarding overlay ──────────────────────────────────────────────────── */
+html.dark #onboarding-overlay .bg-white { background-color: #22262f; }
+
+/* ── Streak card ─────────────────────────────────────────────────────────── */
+html.dark .streak-card {
+  background: linear-gradient(to right, #2b1f18, #261d12);
+  border-color: #4a3422;
+}
+
+html.dark .streak-card__icon {
+  background-color: #3a281c;
+  border-color: #5a3a24;
+}
+
+.weekly-workload-badge--light {
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.08);
+}
+
+html.dark .weekly-workload-badge--light {
+  box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.12);
+}
+
+/* ── Inputs: range slider ────────────────────────────────────────────────── */
+html.dark input[type="range"] { color-scheme: dark; }

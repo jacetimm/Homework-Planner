@@ -62,8 +62,10 @@ class UserSetting < ApplicationRecord
   def study_window_valid
     return if study_start_time.blank? || study_end_time.blank?
 
-    if study_end_time <= study_start_time
-      errors.add(:study_end_time, "must be after start time")
+    # end < start is valid — it means the session crosses midnight (e.g. 10 PM–2 AM)
+    # only reject identical times (zero duration)
+    if study_end_time == study_start_time
+      errors.add(:study_end_time, "must be different from start time")
     end
   end
 
@@ -80,6 +82,7 @@ class UserSetting < ApplicationRecord
     self.ignored_google_calendar_ids ||= []
     self.calendar_ignore_rules ||= []
     self.max_minutes_per_subject ||= 45
+    self.color_theme ||= "auto"
     self.onboarding_completed = false
   end
 end
