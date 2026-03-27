@@ -64,7 +64,7 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
   # minitest 6 breaks railties 7.2 line-filtering; pin to 5.x
-  gem "minitest", "~> 5.25"
+  gem "minitest", "~> 6.0"
   gem "ostruct"
 end
 
