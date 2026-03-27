@@ -87,8 +87,13 @@ class HomeworkScheduler
       fallback_last_night  = days_until <= 0 ? today : due_date
       last_night           = preferred_last_night
 
-      # Per-subject nightly cap (0 = unlimited, use whatever capacity is available)
-      night_max = @max_per_subject > 0 ? @max_per_subject : total_minutes
+      # Per-subject nightly cap — waived when due tonight/overdue so the student
+      # can finish in time rather than having work pushed to the next day.
+      night_max = if @max_per_subject > 0 && days_until > 0
+        @max_per_subject
+      else
+        total_minutes
+      end
 
       available_nights = [(last_night - today).to_i + 1, 1].max
       ideal_per_night  = (total_minutes.to_f / available_nights).ceil
