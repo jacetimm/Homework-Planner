@@ -5,7 +5,7 @@
     <p class="text-slate-500 text-sm mt-1">Customize how Homework Planner schedules your study time.</p>
   </div>
 
-  <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden pb-20">
+  <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden pb-36 md:pb-20">
     <%= form_with model: @user_setting, url: settings_path, method: :patch, class: "divide-y divide-slate-100", id: "preferences-form" do |f| %>
 
       <!-- Section 0: Appearance -->
@@ -299,7 +299,7 @@
   </div>
 
   <!-- Sticky Save Bar -->
-  <div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-700 shadow-lg">
+  <div class="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-700 shadow-lg">
     <div class="max-w-4xl mx-auto px-5 sm:px-8 py-3 flex items-center justify-between gap-4">
       <p class="text-sm text-slate-500 hidden sm:block">Customize how your homework gets scheduled.</p>
       <button type="submit" form="preferences-form" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl shadow-sm transition duration-150 cursor-pointer ml-auto">
