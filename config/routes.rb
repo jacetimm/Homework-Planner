@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "dashboard#index"
   post "/sync", to: "dashboard#sync", as: :sync_dashboard
+  post "/onboarding/complete", to: "onboarding#complete", as: :complete_onboarding
   post "/assignments/:course_work_id/reestimate", to: "assignments#reestimate", as: :reestimate_assignment
   post "/assignments/:course_work_id/set_estimate", to: "assignments#set_estimate", as: :set_assignment_estimate
   resources :study_sessions, only: [ :create, :update ]

@@ -261,6 +261,21 @@
         </div>
       </div>
 
+      <!-- Section 7: Feature Visibility -->
+      <div class="p-4 sm:p-8">
+        <h3 class="text-base font-bold text-slate-900 mb-0.5">Feature Visibility</h3>
+        <p class="text-sm text-slate-500 mb-5">By default, advanced features unlock gradually as you use the app. Turn this on to see everything immediately.</p>
+
+        <label class="flex items-center gap-4 cursor-pointer group">
+          <%= f.check_box :show_all_features, class: "sr-only peer", id: "show_all_features_toggle" %>
+          <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 flex-shrink-0"></div>
+          <div>
+            <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Show all features</p>
+            <p class="text-xs text-slate-500 mt-0.5">Unlock everything now instead of gradually. Great for power users.</p>
+          </div>
+        </label>
+      </div>
+
     <% end %>
   </div>
 
@@ -279,7 +294,7 @@
 <script>
   let extraIndex = <%= @user_setting.extracurricular_blocks.size %>;
   let calendarRuleIndex = <%= [(@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? }.size, 0].max %>;
-  const calendarOptionsHtml = `<option value="">Any Calendar</option><%= j(@google_calendars.map { |calendar| "<option value=\"#{ERB::Util.html_escape(calendar[:id])}\">#{ERB::Util.html_escape(calendar[:summary])}</option>" }.join.html_safe) %>`;
+  const calendarOptionsHtml = `<option value="">Any Calendar</option><%= j(@google_calendars.map { |calendar| "<option value=\"#{h(calendar[:id])}\">#{h(calendar[:summary])}</option>" }.join) %>`;
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   function toggleDayPill(btn) {

@@ -21,8 +21,6 @@ class SettingsController < ApplicationController
       @google_calendars = []
     end
 
-    # Pre-compute which calendar IDs are currently included so the view can highlight them
-    @all_calendar_ids = @google_calendars.map { |c| c[:id] }
   end
 
   def update
@@ -63,6 +61,7 @@ class SettingsController < ApplicationController
       :break_frequency,
       :break_duration,
       :max_minutes_per_subject,
+      :show_all_features,
       :block_google_calendar_events,
       included_google_calendar_ids: [],
       hard_subjects: []

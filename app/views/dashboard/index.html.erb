@@ -1,4 +1,273 @@
 <% if current_user %>
+  <%# ═══ ONBOARDING OVERLAY (first-time users only) ═══ %>
+  <% if @onboarding %>
+    <div id="onboarding-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-y-auto max-h-[90vh]">
+        <!-- Progress dots -->
+        <div class="flex justify-center gap-2 mb-8">
+          <% (1..7).each do |n| %>
+            <span class="onb-dot w-2.5 h-2.5 rounded-full transition-colors <%= n == 1 ? 'bg-indigo-600' : 'bg-slate-200' %>" data-step="<%= n %>"></span>
+          <% end %>
+        </div>
+
+        <!-- Step 1: Welcome -->
+        <div class="onb-step" data-step="1">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-4">📚</div>
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-3">Welcome to Homework Planner!</h2>
+            <p class="text-slate-500 leading-relaxed">I'll automatically plan your homework night — so you always know exactly what to work on first and how long it'll take.</p>
+            <p class="text-sm text-slate-400 mt-4">Let's set things up in under a minute.</p>
+          </div>
+        </div>
+
+        <!-- Step 2: Study hours -->
+        <div class="onb-step hidden" data-step="2">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">⏰</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">When do you usually study?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">Homework gets scheduled within this window.</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1.5">Study starts</label>
+                <select id="onb-start-time" class="w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-slate-800 font-semibold">
+                  <% ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"].each do |t| %>
+                    <option value="<%= t %>" <%= t == '16:00' ? 'selected' : '' %>><%= Time.parse(t).strftime("%-I:%M %p") %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1.5">Study ends</label>
+                <select id="onb-end-time" class="w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-slate-800 font-semibold">
+                  <% ["14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00","23:59"].each do |t| %>
+                    <option value="<%= t %>" <%= t == '22:00' ? 'selected' : '' %>><%= t == '23:59' ? 'Midnight' : Time.parse(t).strftime("%-I:%M %p") %></option>
+                  <% end %>
+                </select>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3 text-center">You can change these anytime in Settings.</p>
+          </div>
+        </div>
+
+        <!-- Step 3: Breaks -->
+        <div class="onb-step hidden" data-step="3">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">☕</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">How often do you want breaks?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">Short breaks help you stay focused.</p>
+            <div class="mb-5">
+              <p class="text-sm font-bold text-slate-700 mb-2">Break every…</p>
+              <div class="flex gap-2">
+                <% [[30,"30 min"],[45,"45 min"],[60,"60 min"]].each do |val, label| %>
+                  <button type="button"
+                          class="onb-pill-freq flex-1 rounded-xl border-2 py-2.5 text-sm font-bold transition <%= val == 45 ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300' %>"
+                          data-value="<%= val %>"
+                          onclick="onbPillSelect(this,'freq')">
+                    <%= label %>
+                  </button>
+                <% end %>
+              </div>
+              <input type="hidden" id="onb-break-freq" value="45">
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-700 mb-2">Break length</p>
+              <div class="flex gap-2">
+                <% [[5,"5 min"],[10,"10 min"],[15,"15 min"]].each do |val, label| %>
+                  <button type="button"
+                          class="onb-pill-dur flex-1 rounded-xl border-2 py-2.5 text-sm font-bold transition <%= val == 10 ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-300' %>"
+                          data-value="<%= val %>"
+                          onclick="onbPillSelect(this,'dur')">
+                    <%= label %>
+                  </button>
+                <% end %>
+              </div>
+              <input type="hidden" id="onb-break-dur" value="10">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Hard subjects -->
+        <div class="onb-step hidden" data-step="4">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">🧠</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Which classes are hardest?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">These get extra scheduling priority.</p>
+            <div class="space-y-2 max-h-48 overflow-y-auto pr-1" id="onb-subjects-list">
+              <% if @courses.present? %>
+                <% @courses.each do |course| %>
+                  <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition">
+                    <input type="checkbox" name="onb_hard_subjects[]" value="<%= course.name %>"
+                           class="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-slate-700"><%= course.name %></span>
+                  </label>
+                <% end %>
+              <% else %>
+                <p class="text-sm text-slate-400 text-center py-4">No courses found — you can set hard subjects in Settings later.</p>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Max study per subject -->
+        <div class="onb-step hidden" data-step="5">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">⏱️</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Max time on one subject per night?</h2>
+            <p class="text-sm text-slate-500 mb-6 text-center">Prevents over-focusing on a single class.</p>
+            <div class="text-center mb-4">
+              <span id="onb-max-label" class="text-3xl font-extrabold text-indigo-600">45 min</span>
+            </div>
+            <input type="range" id="onb-max-slider"
+                   min="30" max="120" step="15" value="45"
+                   oninput="document.getElementById('onb-max-label').textContent = this.value + ' min'"
+                   class="w-full accent-indigo-600">
+            <div class="flex justify-between text-xs text-slate-400 mt-1">
+              <span>30 min</span><span>2 hours</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6: Feature preference -->
+        <div class="onb-step hidden" data-step="6">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">✨</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Want all features now?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">You can always change this in Settings.</p>
+            <div class="flex flex-col gap-3">
+              <button type="button" id="onb-simple-btn"
+                      onclick="onbFeaturePref('simple')"
+                      class="onb-feat-btn w-full rounded-2xl border-2 border-slate-200 p-4 text-left hover:border-indigo-300 transition">
+                <p class="font-extrabold text-slate-800 text-sm">Start simple</p>
+                <p class="text-xs text-slate-500 mt-0.5">Features unlock gradually as you use the app.</p>
+              </button>
+              <button type="button" id="onb-all-btn"
+                      onclick="onbFeaturePref('all')"
+                      class="onb-feat-btn w-full rounded-2xl border-2 border-slate-200 p-4 text-left hover:border-indigo-300 transition">
+                <p class="font-extrabold text-slate-800 text-sm">Give me everything</p>
+                <p class="text-xs text-slate-500 mt-0.5">All features visible right away.</p>
+              </button>
+            </div>
+            <input type="hidden" id="onb-show-all" value="0">
+          </div>
+        </div>
+
+        <!-- Step 7: Done -->
+        <div class="onb-step hidden" data-step="7">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-4">🎉</div>
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-3">You're all set!</h2>
+            <p class="text-slate-500 leading-relaxed">Your homework planner is configured. Assignments are being loaded — they'll be ready in a moment.</p>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex items-center gap-3 mt-8">
+          <button id="onb-back" onclick="onbNav(-1)"
+                  class="hidden text-sm font-semibold text-slate-400 hover:text-slate-700 transition px-4 py-2.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200">
+            ← Back
+          </button>
+          <div class="flex-1"></div>
+          <button id="onb-next" onclick="onbNav(1)"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-sm shadow-sm">
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    var _onbCurrent  = 1;
+    var _onbTotal    = 7;
+    var _onbShowAll  = false;
+
+    function onbPillSelect(el, group) {
+      var cls     = group === 'freq' ? 'onb-pill-freq' : 'onb-pill-dur';
+      var inputId = group === 'freq' ? 'onb-break-freq' : 'onb-break-dur';
+      document.querySelectorAll('.' + cls).forEach(function(b) {
+        b.className = b.className
+          .replace('border-indigo-500 bg-indigo-50 text-indigo-700', '')
+          .replace('border-slate-200 text-slate-600', '') + ' border-slate-200 text-slate-600';
+      });
+      el.className = el.className
+        .replace('border-slate-200 text-slate-600', '') + ' border-indigo-500 bg-indigo-50 text-indigo-700';
+      document.getElementById(inputId).value = el.dataset.value;
+    }
+
+    function onbFeaturePref(choice) {
+      _onbShowAll = (choice === 'all');
+      document.getElementById('onb-show-all').value = _onbShowAll ? '1' : '0';
+      document.querySelectorAll('.onb-feat-btn').forEach(function(b) {
+        b.classList.remove('border-indigo-500', 'bg-indigo-50');
+        b.classList.add('border-slate-200');
+      });
+      var active = document.getElementById(choice === 'all' ? 'onb-all-btn' : 'onb-simple-btn');
+      active.classList.remove('border-slate-200');
+      active.classList.add('border-indigo-500', 'bg-indigo-50');
+    }
+
+    function onbNav(dir) {
+      var next = _onbCurrent + dir;
+      if (next < 1 || next > _onbTotal) return;
+
+      document.querySelector('.onb-step[data-step="' + _onbCurrent + '"]').classList.add('hidden');
+      _onbCurrent = next;
+      document.querySelector('.onb-step[data-step="' + _onbCurrent + '"]').classList.remove('hidden');
+
+      // Update progress dots
+      document.querySelectorAll('.onb-dot').forEach(function(dot) {
+        var active = parseInt(dot.dataset.step) <= _onbCurrent;
+        dot.className = 'onb-dot w-2.5 h-2.5 rounded-full transition-colors ' + (active ? 'bg-indigo-600' : 'bg-slate-200');
+      });
+
+      // Back button
+      document.getElementById('onb-back').classList.toggle('hidden', _onbCurrent === 1);
+
+      // Next/Done button label
+      var btn = document.getElementById('onb-next');
+      if (_onbCurrent === 6) {
+        // Step 6 — user picks a card, button advances
+        btn.textContent = 'Next →';
+        btn.onclick = function() { onbNav(1); };
+      } else if (_onbCurrent === 7) {
+        btn.textContent = "Let's go!";
+        btn.onclick = onbComplete;
+      } else {
+        btn.textContent = 'Next →';
+        btn.onclick = function() { onbNav(1); };
+      }
+    }
+
+    async function onbComplete() {
+      var csrf     = document.querySelector('meta[name="csrf-token"]')?.content || '';
+      var start    = document.getElementById('onb-start-time')?.value   || '';
+      var end      = document.getElementById('onb-end-time')?.value     || '';
+      var freq     = document.getElementById('onb-break-freq')?.value   || '45';
+      var dur      = document.getElementById('onb-break-dur')?.value    || '10';
+      var maxMin   = document.getElementById('onb-max-slider')?.value   || '45';
+      var showAll  = document.getElementById('onb-show-all')?.value     || '0';
+      var subjects = Array.from(
+        document.querySelectorAll('input[name="onb_hard_subjects[]"]:checked')
+      ).map(function(cb) { return cb.value; });
+
+      var form = new FormData();
+      if (start)  form.append('study_start_time', start);
+      if (end)    form.append('study_end_time',   end);
+      form.append('break_frequency',       freq);
+      form.append('break_duration',        dur);
+      form.append('max_minutes_per_subject', maxMin);
+      form.append('show_all_features',     showAll);
+      subjects.forEach(function(s) { form.append('hard_subjects[]', s); });
+
+      try {
+        await fetch('<%= complete_onboarding_path %>', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrf },
+          body: form
+        });
+      } catch(e) {}
+      document.getElementById('onboarding-overlay').remove();
+    }
+    </script>
+  <% end %>
 <%
   _today_str   = Date.current.to_s
   _tonight_plan = @schedule[_today_str] || {}
@@ -20,6 +289,61 @@
           .crunch-checkbox svg { width: 1rem !important; height: 1rem !important; }
         }
       </style>
+
+      <%# ═══ TOOLTIP HINTS (first 3 visits, dismissed via localStorage) ═══ %>
+      <% if @flags&.show_tooltips? %>
+        <div id="tooltip-hints">
+          <div class="tooltip-hint hidden" data-tooltip-id="timer" data-target="hw-timer-section"></div>
+          <div class="tooltip-hint hidden" data-tooltip-id="timeline" data-target="desktop-timeline-section"></div>
+          <div class="tooltip-hint hidden" data-tooltip-id="urgent"></div>
+        </div>
+        <script>
+        (function() {
+          var dismissed = JSON.parse(localStorage.getItem('dismissed_tooltips') || '[]');
+
+          function showTooltip(id, anchorId, text) {
+            if (dismissed.includes(id)) return;
+            var anchor = document.getElementById(anchorId);
+            if (!anchor) return;
+            var tip = document.createElement('div');
+            tip.setAttribute('data-tooltip-id', id);
+            tip.className = 'fixed z-[60] max-w-[200px] bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-lg pointer-events-auto flex items-start gap-2';
+            tip.innerHTML = '<span class="flex-1 leading-snug">' + text + '</span>' +
+              '<button onclick="dismissTooltip(\'' + id + '\')" class="text-slate-400 hover:text-white flex-shrink-0 leading-none text-base font-bold ml-1">&times;</button>';
+
+            // Arrow
+            var arrow = document.createElement('div');
+            arrow.className = 'absolute -bottom-1.5 left-5 w-3 h-3 bg-slate-900 rotate-45';
+            tip.appendChild(arrow);
+
+            document.body.appendChild(tip);
+
+            // Position below anchor
+            var rect = anchor.getBoundingClientRect();
+            tip.style.top  = (rect.bottom + window.scrollY + 10) + 'px';
+            tip.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 220) + 'px';
+          }
+
+          window.dismissTooltip = function(id) {
+            dismissed.push(id);
+            localStorage.setItem('dismissed_tooltips', JSON.stringify(dismissed));
+            document.querySelectorAll('[data-tooltip-id="' + id + '"]').forEach(function(el) { el.remove(); });
+          };
+
+          document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth >= 768) {
+              showTooltip('timer',    'hw-timer-section',   'Tap here to start a study timer for any assignment.');
+              showTooltip('timeline', 'desktop-timeline-section', 'This shows how your night is planned hour by hour.');
+            }
+            // Urgent tooltip near tonight header (if visible)
+            var tonightHeader = document.querySelector('[data-tooltip-target="urgent-header"]');
+            if (tonightHeader && !dismissed.includes('urgent')) {
+              showTooltip('urgent', 'tonight-plan-header', 'Assignments in red are due soon — tackle these first.');
+            }
+          });
+        })();
+        </script>
+      <% end %>
 
       <%# ═══ MOBILE SUMMARY CARD (hidden on md+) ═══ %>
       <div class="md:hidden px-0 pt-4 pb-3">
@@ -56,7 +380,7 @@
               <% end %>
             </p>
             <div class="flex items-center gap-2 mt-3 flex-wrap">
-              <% if @streak&.dig(:active) && @streak[:count].to_i > 0 %>
+              <% if @flags&.streak? && @streak&.dig(:active) && @streak[:count].to_i > 0 %>
                 <span class="inline-flex items-center gap-1.5 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 text-xs font-bold text-orange-200">🔥 <%= @streak[:count] %>-day streak</span>
               <% end %>
               <% if @tonight_summary&.dig(:pending_count).to_i > 0 %>
@@ -146,7 +470,7 @@
           </div>
 
           <%# Compact timeline (first 3 items, expand for rest) %>
-          <% if _mobile_tl.any? %>
+          <% if @flags&.timeline? && _mobile_tl.any? %>
             <div class="pb-4 pt-2">
               <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -224,7 +548,7 @@
         <div id="mobile-weekly-view" class="hidden">
           <div class="pt-4 pb-6">
             <h3 class="text-lg font-bold text-slate-900 mb-4">Weekly Workload</h3>
-            <% if @schedule.except("busiest_day", "wont_fit").any? { |_, day| day[:assignments].any? } %>
+            <% if @schedule.except("busiest_day", "wont_fit", "wont_fit_tonight").any? { |_, day| day[:assignments].any? } %>
               <div class="grid grid-cols-2 gap-2.5">
                 <% (0..6).each do |offset| %>
                   <%
@@ -336,7 +660,7 @@
       <div class="space-y-8">
 
         <!-- Streak tracker (desktop only — mobile sees streak in summary card) -->
-        <% if @streak %>
+        <% if @flags&.streak? && @streak %>
           <%
             streak_count = @streak[:count].to_i
             streak_active = @streak[:active]
@@ -374,7 +698,7 @@
         <% end %>
 
         <!-- Danger zone banners -->
-        <% if @danger_zone&.any? %>
+        <% if @flags&.danger_zone? && @danger_zone&.any? %>
           <div class="space-y-2">
             <% @danger_zone.each do |a| %>
               <%
@@ -407,7 +731,7 @@
         <% end %>
 
         <!-- Calibration nudge banners -->
-        <% if @calibration_nudges&.any? %>
+        <% if @flags&.calibration? && @calibration_nudges&.any? %>
           <div class="space-y-3">
             <% @calibration_nudges.each do |nudge| %>
               <div class="flex items-start gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 relative"
@@ -625,7 +949,7 @@
         </section>
 
         <!-- Section 2: Weekly Workload (desktop only — mobile sees weekly via bottom nav) -->
-        <% if @schedule.except("busiest_day", "wont_fit").any? { |_, day| day[:assignments].any? } %>
+        <% if @schedule.except("busiest_day", "wont_fit", "wont_fit_tonight").any? { |_, day| day[:assignments].any? } %>
         <section class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50 flex-wrap">
             <div class="flex items-center gap-3">
@@ -716,8 +1040,8 @@
           _needed       = @tonight_summary[:total_minutes].to_i
           _overflow     = @schedule["wont_fit"]&.any?
         %>
-        <% if _timeline.any? %>
-        <section class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <% if @flags&.timeline? && _timeline.any? %>
+        <section id="desktop-timeline-section" class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
           <!-- Header -->
           <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
@@ -1003,7 +1327,7 @@
   }
 
   function syncTimerStartState() {
-    startBtn.disabled = !select.value || running || !!sessionId;
+    startBtn.disabled = !selectedAssignmentOption() || running || !!sessionId;
   }
 
   async function beginSessionForSelectedAssignment() {

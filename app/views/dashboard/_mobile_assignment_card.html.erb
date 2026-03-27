@@ -33,6 +33,7 @@
   </summary>
 
   <div class="px-4 pb-4 pt-2.5 border-t border-slate-100 bg-slate-50/50 space-y-2.5">
+    <% if @flags&.crunch_mode? %>
     <button class="crunch-btn w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition active:scale-95 <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white' %>"
       data-course-work-id="<%= a[:course_work_id] %>"
       data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
@@ -41,7 +42,9 @@
       data-due="<%= a[:due_date] %>">
       &#9889; Crunch Mode
     </button>
+    <% end %>
 
+    <% if @flags&.reestimate? %>
     <div class="flex items-center gap-2">
       <%= button_to "↺ Re-estimate",
         reestimate_assignment_path(a[:course_work_id]),
@@ -50,6 +53,7 @@
         disabled: a[:reestimate_disabled],
         class: "flex-1 py-2.5 rounded-xl text-xs font-bold border transition text-center #{a[:reestimate_disabled] ? 'border-slate-200 text-slate-400 bg-slate-100 cursor-not-allowed' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer'}" %>
     </div>
+    <% end %>
 
     <form action="<%= set_assignment_estimate_path(a[:course_work_id]) %>" method="post" data-turbo="false" class="flex items-center gap-2">
       <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
@@ -59,7 +63,7 @@
       <button type="submit" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">Set</button>
     </form>
 
-    <% if a[:split_plan]&.size.to_i > 1 %>
+    <% if @flags&.split_view? && a[:split_plan]&.size.to_i > 1 %>
       <div class="flex flex-wrap gap-1.5 items-center pt-0.5">
         <span class="text-xs text-slate-500 font-semibold">Split:</span>
         <% a[:split_plan].each_with_index do |chunk, i| %>

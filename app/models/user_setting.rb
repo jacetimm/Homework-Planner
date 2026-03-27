@@ -69,7 +69,7 @@ class UserSetting < ApplicationRecord
 
   def set_defaults
     # Defaults provided in requirements
-    self.study_start_time ||= Time.parse("19:00:00") # 7:00 PM
+    self.study_start_time ||= Time.parse("16:00:00") # 4:00 PM
     self.study_end_time ||= Time.parse("22:00:00")   # 10:00 PM
     self.break_frequency ||= 45
     self.break_duration ||= 10
@@ -80,5 +80,6 @@ class UserSetting < ApplicationRecord
     self.ignored_google_calendar_ids ||= []
     self.calendar_ignore_rules ||= []
     self.max_minutes_per_subject ||= 45
+    self.onboarding_completed = false
   end
 end

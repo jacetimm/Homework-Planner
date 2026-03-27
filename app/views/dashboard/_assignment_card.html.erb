@@ -28,10 +28,14 @@
         <span class="text-[11px] font-bold text-slate-400" title="AI estimate in progress — showing a rough estimate">~<%= format_minutes(a[:minutes]) %></span>
       <% elsif a[:estimate_source] == :manual %>
         <span class="text-[11px] font-bold text-white"><%= format_minutes(a[:minutes]) %></span>
-        <span class="text-[9px] font-extrabold uppercase tracking-wide text-sky-300 border border-sky-500/30 bg-sky-500/10 px-1 rounded leading-4" title="You set this estimate manually">Manual</span>
+        <% if @flags&.calibration? %>
+          <span class="text-[9px] font-extrabold uppercase tracking-wide text-sky-300 border border-sky-500/30 bg-sky-500/10 px-1 rounded leading-4" title="You set this estimate manually">Manual</span>
+        <% end %>
       <% else %>
         <span class="text-[11px] font-bold text-white"><%= format_minutes(a[:minutes]) %></span>
-        <span class="text-[9px] font-extrabold uppercase tracking-wide text-violet-300 border border-violet-500/30 bg-violet-500/10 px-1 rounded leading-4" title="Estimated by Groq AI">AI</span>
+        <% if @flags&.calibration? %>
+          <span class="text-[9px] font-extrabold uppercase tracking-wide text-violet-300 border border-violet-500/30 bg-violet-500/10 px-1 rounded leading-4" title="Estimated by Groq AI">AI</span>
+        <% end %>
       <% end %>
     </span>
   </div>
@@ -47,6 +51,7 @@
     <% if a[:urgency] == "overdue" %>
       <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-rose-500/30 text-rose-200 border-rose-400/40">Overdue</span>
     <% end %>
+    <% if @flags&.crunch_mode? %>
     <button
       class="crunch-btn ml-auto text-[10px] font-extrabold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded-lg <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white border border-rose-400 animate-pulse' : 'bg-violet-500/35 hover:bg-violet-500/55 text-violet-100 border border-violet-400/50' %> transition cursor-pointer flex items-center gap-1 whitespace-nowrap"
       data-course-work-id="<%= a[:course_work_id] %>"
@@ -56,10 +61,11 @@
       data-due="<%= a[:due_date] %>">
       &#9889; Crunch
     </button>
+    <% end %>
   </div>
 
   <!-- Night-by-night split plan -->
-  <% if a[:split_plan]&.size.to_i > 1 %>
+  <% if @flags&.split_view? && a[:split_plan]&.size.to_i > 1 %>
     <div class="mt-2.5 flex flex-wrap gap-1 items-center">
       <span class="text-[10px] text-white/55 font-semibold mr-0.5">Split:</span>
       <% a[:split_plan].each_with_index do |chunk, i| %>
@@ -73,6 +79,7 @@
 
   <!-- Actions row -->
   <div class="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-white/12">
+    <% if @flags&.reestimate? %>
     <div class="flex items-center gap-1.5 min-w-0">
       <%= button_to "↺ AI Re-estimate",
         reestimate_assignment_path(a[:course_work_id]),
@@ -82,6 +89,7 @@
         title: "#{a[:reestimate_tooltip]} #{a[:daily_reestimates_left] || AssignmentReestimate::DAILY_LIMIT}/#{a[:daily_reestimates_limit] || AssignmentReestimate::DAILY_LIMIT} left today".strip,
         class: "text-[10px] font-bold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded border transition #{a[:reestimate_disabled] ? 'border-white/10 text-white/25 bg-white/5 cursor-not-allowed' : 'border-white/20 text-white/70 bg-white/10 hover:bg-white/18 hover:text-white cursor-pointer'}" %>
     </div>
+    <% end %>
 
     <form action="<%= set_assignment_estimate_path(a[:course_work_id]) %>" method="post" data-turbo="false" class="flex items-center gap-1.5">
       <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
