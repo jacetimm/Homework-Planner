@@ -39,9 +39,8 @@ class ClassroomService
         # Skip anything that isn't clearly actionable
         next unless ACTIONABLE_STATES.include?(state)
 
-        desc               = work.description.to_s
-        materials_metadata = extract_materials_metadata(work.materials)
-        materials_count    = materials_metadata.size
+        desc            = work.description.to_s
+        materials_count = Array(work.materials).size
 
         # --- PART 2: Links ---
         # Use the API-provided alternate_link (guaranteed by Google to be correct).
@@ -49,14 +48,13 @@ class ClassroomService
         assignment_link = work.alternate_link.presence || course.alternate_link
 
         all_assignments << {
-          class_name:         course.name,
-          course_link:        course.alternate_link,
-          title:              work.title,
-          assignment_link:    assignment_link,
-          description:        desc,
-          materials_count:    materials_count,
-          materials_metadata: materials_metadata,
-          max_points:         work.max_points.to_i,
+          class_name:      course.name,
+          course_link:     course.alternate_link,
+          title:           work.title,
+          assignment_link: assignment_link,
+          description:     desc,
+          materials_count: materials_count,
+          max_points:      work.max_points.to_i,
           due_date:           parse_due_date(work.due_date, work.due_time),
           state:              state,
           course_id:          course.id,
@@ -77,25 +75,6 @@ class ClassroomService
   end
 
   private
-
-  # Converts the Google Classroom materials array into a flat array of hashes:
-  #   [{ title: String, type: String }]
-  # Type is one of: "drive_file", "link", "youtube_video", "form"
-  def extract_materials_metadata(materials)
-    return [] if materials.nil?
-
-    materials.filter_map do |mat|
-      if (df = mat.drive_file&.drive_file)
-        { title: df.title.to_s.presence || "Untitled file", type: "drive_file" }
-      elsif (link = mat.link)
-        { title: link.title.to_s.presence || link.url.to_s, type: "link" }
-      elsif (yt = mat.youtube_video)
-        { title: yt.title.to_s.presence || "YouTube video", type: "youtube_video" }
-      elsif (form = mat.form)
-        { title: form.title.to_s.presence || "Google Form", type: "form" }
-      end
-    end
-  end
 
   def raise_if_auth_error(e)
     raise e if e.is_a?(Google::Apis::AuthorizationError)

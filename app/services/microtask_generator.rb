@@ -27,23 +27,20 @@ class MicrotaskGenerator
   end
 
   # Returns array of { "task" => String, "minutes" => Integer } or nil on failure
-  def generate(title:, class_name:, estimated_minutes:, description: nil, materials_count: 0, materials_metadata: [], max_points: nil, due_date: nil)
+  def generate(title:, class_name:, estimated_minutes:, description: nil, materials_count: 0, max_points: nil, due_date: nil)
     return nil if @api_key.blank?
 
     target_minutes = estimated_minutes.to_i
     return nil if target_minutes <= 0
 
-    resolved_metadata = Array(materials_metadata).presence || []
-
     user_message = build_user_message(
-      title:              title,
-      class_name:         class_name,
-      description:        description,
-      materials_count:    resolved_metadata.any? ? resolved_metadata.size : materials_count.to_i,
-      materials_metadata: resolved_metadata,
-      max_points:         max_points,
-      estimated_minutes:  estimated_minutes,
-      due_date:           due_date
+      title:             title,
+      class_name:        class_name,
+      description:       description,
+      materials_count:   materials_count.to_i,
+      max_points:        max_points,
+      estimated_minutes: estimated_minutes,
+      due_date:          due_date
     )
 
     content = call_groq(user_message)
@@ -55,7 +52,7 @@ class MicrotaskGenerator
 
   private
 
-  def build_user_message(title:, class_name:, description:, materials_count:, materials_metadata:, max_points:, estimated_minutes:, due_date:)
+  def build_user_message(title:, class_name:, description:, materials_count:, max_points:, estimated_minutes:, due_date:)
     parts = []
     parts << "Course: #{class_name}"
     parts << "Assignment title: #{title}"
@@ -70,56 +67,10 @@ class MicrotaskGenerator
     parts << "Total estimated time: #{estimated_minutes} minutes"
     parts << "The total time across all micro-tasks MUST equal exactly #{estimated_minutes} minutes. Do not exceed it."
     parts << "Point value: #{max_points} points" if max_points.to_i > 0
-
-    if materials_metadata.any?
-      lines = materials_metadata.map.with_index(1) do |m, i|
-        type_label = case m["type"] || m[:type]
-                     when "drive_file"    then "Google Drive file"
-                     when "link"         then "Link"
-                     when "youtube_video" then "YouTube video"
-                     when "form"         then "Google Form"
-                     else "Attachment"
-                     end
-        title_str = m["title"] || m[:title] || "Untitled"
-        snippet   = m["content_snippet"] || m[:content_snippet]
-        pages     = m["page_count"] || m[:page_count]
-        questions = m["question_count"] || m[:question_count]
-        headers   = m["section_headers"] || m[:section_headers]
-        mime      = m["mime_type"] || m[:mime_type]
-
-        if snippet.present?
-          fmt = mime_format_label(mime)
-          meta_parts = []
-          meta_parts << fmt if fmt
-          meta_parts << "#{pages} pages" if pages.to_i > 0
-          meta_parts << "~#{questions} questions" if questions.to_i > 0
-          meta_info = meta_parts.any? ? " (#{meta_parts.join(", ")})" : ""
-
-          entry_lines = ["  #{i}. #{type_label}: #{title_str}#{meta_info}"]
-          entry_lines << "     Headers: #{Array(headers).first(5).join(", ")}" if Array(headers).any?
-          entry_lines << "     Content preview: #{snippet.to_s.strip[0, 300].inspect}"
-          entry_lines.join("\n")
-        else
-          "  #{i}. #{type_label}: #{title_str}"
-        end
-      end
-      parts << "Attached materials (#{materials_metadata.size} total):\n#{lines.join("\n")}"
-    elsif materials_count > 0
-      parts << "Number of attachments/materials: #{materials_count}"
-    end
-
+    parts << "Number of attachments/materials: #{materials_count}" if materials_count > 0
     parts << "Due: #{due_date}" if due_date.present?
 
     parts.join("\n")
-  end
-
-  def mime_format_label(mime)
-    case mime.to_s
-    when "application/pdf" then "PDF"
-    when "application/vnd.google-apps.document" then "Google Doc"
-    when "application/vnd.google-apps.presentation" then "Google Slides"
-    else nil
-    end
   end
 
   def call_groq(user_message)

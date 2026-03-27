@@ -34,7 +34,7 @@ class TimeEstimator
   end
 
   # Returns { minutes: Integer, reasoning: String, source: String }
-  def estimate(title:, description:, class_name:, materials_metadata: [])
+  def estimate(title:, description:, class_name:)
     if @api_key.blank?
       Rails.logger.warn("[TimeEstimator] GROQ_API_KEY not set — using default")
       return fallback_result("No API key configured")
@@ -43,12 +43,7 @@ class TimeEstimator
     clean_description = sanitize_text(description)
 
     content = call_groq(
-      build_user_message(
-        title,
-        clean_description,
-        class_name,
-        Array(materials_metadata)
-      )
+      build_user_message(title, clean_description, class_name)
     )
 
     parsed = parse_response(content)
@@ -63,62 +58,14 @@ class TimeEstimator
 
   private
 
-  def build_user_message(title, description, class_name, materials_metadata = [])
+  def build_user_message(title, description, class_name)
     desc = description.presence || "(no description provided — estimate based on title and course)"
     parts = []
     parts << "Course: #{class_name}"
     parts << "Title: #{title}"
     parts << "Description: #{desc}"
-
-    if materials_metadata.any?
-      parts << "Attached materials (#{materials_metadata.size} total):\n#{format_materials(materials_metadata)}"
-    end
-
     parts << "\nEstimate the likely total minutes and keep it realistic for a normal student."
     parts.join("\n")
-  end
-
-  def format_materials(materials_metadata)
-    materials_metadata.map.with_index(1) do |m, i|
-      type_label = case m["type"] || m[:type]
-                   when "drive_file"    then "Google Drive file"
-                   when "link"         then "Link"
-                   when "youtube_video" then "YouTube video"
-                   when "form"         then "Google Form"
-                   else "Attachment"
-                   end
-      title = m["title"] || m[:title] || "Untitled"
-      snippet  = m["content_snippet"] || m[:content_snippet]
-      pages    = m["page_count"] || m[:page_count]
-      questions = m["question_count"] || m[:question_count]
-      headers  = m["section_headers"] || m[:section_headers]
-      mime     = m["mime_type"] || m[:mime_type]
-
-      if snippet.present?
-        fmt = mime_format_label(mime)
-        meta_parts = []
-        meta_parts << fmt if fmt
-        meta_parts << "#{pages} pages" if pages.to_i > 0
-        meta_parts << "~#{questions} questions" if questions.to_i > 0
-        meta_info = meta_parts.any? ? " (#{meta_parts.join(", ")})" : ""
-
-        lines = ["  #{i}. #{type_label}: #{title}#{meta_info}"]
-        lines << "     Headers: #{Array(headers).first(5).join(", ")}" if Array(headers).any?
-        lines << "     Content preview: #{snippet.to_s.strip[0, 300].inspect}"
-        lines.join("\n")
-      else
-        "  #{i}. #{type_label}: #{title}"
-      end
-    end.join("\n")
-  end
-
-  def mime_format_label(mime)
-    case mime.to_s
-    when "application/pdf" then "PDF"
-    when "application/vnd.google-apps.document" then "Google Doc"
-    when "application/vnd.google-apps.presentation" then "Google Slides"
-    else nil
-    end
   end
 
   def call_groq(user_message)

@@ -69,8 +69,6 @@ group :test do
 end
 
 gem "google-apis-calendar_v3", "~> 0.53.0"
-gem "google-apis-drive_v3"
-gem "pdf-reader", "~> 2.11"
 
 gem "oauth2", "~> 2.0"
 gem "rack-attack"

@@ -33,14 +33,13 @@ class CrunchController < ApplicationController
 
     # Generate via Groq — use stored metadata for maximum context
     tasks = MicrotaskGenerator.new.generate(
-      title:              params[:title].to_s.presence || estimate.reasoning.to_s,
-      class_name:         params[:class_name].to_s,
-      description:        estimate.description.to_s,
-      materials_count:    estimate.materials_count.to_i,
-      materials_metadata: Array(estimate.materials_metadata),
-      max_points:         estimate.max_points,
-      estimated_minutes:  estimate.estimated_minutes,
-      due_date:           params[:due_date].presence
+      title:             params[:title].to_s.presence || estimate.reasoning.to_s,
+      class_name:        params[:class_name].to_s,
+      description:       estimate.description.to_s,
+      materials_count:   estimate.materials_count.to_i,
+      max_points:        estimate.max_points,
+      estimated_minutes: estimate.estimated_minutes,
+      due_date:          params[:due_date].presence
     )
 
     if tasks.present?

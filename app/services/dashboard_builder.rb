@@ -99,17 +99,16 @@ class DashboardBuilder
     if uncached.any?
       serializable = uncached.map do |a|
         {
-          "course_work_id"     => a[:course_work_id],
-          "title"              => a[:title].to_s,
-          "description"        => a[:description].to_s,
-          "class_name"         => a[:class_name].to_s,
-          "materials_count"    => a[:materials_count].to_i,
-          "materials_metadata" => Array(a[:materials_metadata]),
-          "max_points"         => a[:max_points].to_i,
-          "due_date"           => a[:due_date]&.to_s
+          "course_work_id"  => a[:course_work_id],
+          "title"           => a[:title].to_s,
+          "description"     => a[:description].to_s,
+          "class_name"      => a[:class_name].to_s,
+          "materials_count" => a[:materials_count].to_i,
+          "max_points"      => a[:max_points].to_i,
+          "due_date"        => a[:due_date]&.to_s
         }
       end
-      EstimateAssignmentsJob.perform_later(@current_user.email, serializable, @current_user.access_token)
+      EstimateAssignmentsJob.perform_later(@current_user.email, serializable)
       # Assignments with no estimate yet show :pending until the background job completes
     end
   end
@@ -135,7 +134,7 @@ class DashboardBuilder
   end
 
   # ---------------------------------------------------------------------------
-  # Metadata enrichment (Drive backfill)
+  # Metadata backfill (keeps cached estimates up to date with latest API data)
   # ---------------------------------------------------------------------------
 
   def enrich_metadata(all_assignments)
@@ -143,8 +142,6 @@ class DashboardBuilder
       user_email:     @current_user.email,
       course_work_id: all_assignments.map { |a| a[:course_work_id] }
     ).index_by(&:course_work_id)
-
-    extractor = @current_user.access_token.present? ? DriveContentExtractor.new(@current_user.access_token) : nil
 
     all_assignments.each do |a|
       est = all_estimates[a[:course_work_id]]
@@ -157,23 +154,7 @@ class DashboardBuilder
       cols[:title]           = a[:title].to_s.first(255)         if est.title.blank?
       cols[:class_name]      = a[:class_name].to_s.first(255)    if est.class_name.blank?
       cols[:due_date]        = a[:due_date]                      if est.due_date.blank? && a[:due_date].present?
-      if cols[:description]
-        meta = Array(a[:materials_metadata]).presence
-        cols[:materials_metadata] = meta.to_json if meta
-      end
       est.update_columns(cols) if cols.any?
-
-      if extractor && est.materials_metadata.present?
-        existing_meta = Array(est.materials_metadata)
-        needs_extraction = existing_meta.any? do |m|
-          (m["type"] || m[:type]) == "drive_file" &&
-            m["content_extracted"] != true && m[:content_extracted] != true
-        end
-        if needs_extraction
-          enriched = extractor.enrich_materials(existing_meta)
-          est.update_columns(materials_metadata: enriched.to_json)
-        end
-      end
     end
   end
 
