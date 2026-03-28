@@ -3,9 +3,9 @@
   <% if @onboarding %>
     <div id="onboarding-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-y-auto max-h-[90vh]">
-        <!-- Progress dots (9 steps) -->
+        <!-- Progress dots (10 steps) -->
         <div class="flex justify-center gap-2 mb-8">
-          <% (1..9).each do |n| %>
+          <% (1..10).each do |n| %>
             <span class="onb-dot w-2 h-2 rounded-full transition-colors <%= n == 1 ? 'bg-indigo-600' : 'bg-slate-200' %>" data-step="<%= n %>"></span>
           <% end %>
         </div>
@@ -175,8 +175,34 @@
           </div>
         </div>
 
-        <!-- Step 8: Feature preference -->
+        <!-- Step 8: Calendars -->
         <div class="onb-step hidden" data-step="8">
+          <div class="mb-6">
+            <div class="text-4xl mb-3 text-center">📅</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Sync Google Calendars?</h2>
+            <p class="text-sm text-slate-500 mb-5 text-center">We'll schedule homework around your events.</p>
+            
+            <% if @google_calendars.present? %>
+              <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <% @google_calendars.each do |cal| %>
+                  <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition">
+                    <input type="checkbox" name="onb_google_calendar_ids[]" value="<%= cal[:id] %>" checked
+                           class="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <span class="text-sm font-semibold text-slate-700 truncate"><%= cal[:summary] %></span>
+                  </label>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="p-4 rounded-xl border border-slate-200 border-dashed text-center">
+                <p class="text-sm text-slate-500">No Google Calendars found or access not granted yet.</p>
+                <p class="text-xs text-slate-400 mt-1">You can connect them in Settings later.</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Step 9: Feature preference -->
+        <div class="onb-step hidden" data-step="9">
           <div class="mb-6">
             <div class="text-4xl mb-3 text-center">✨</div>
             <h2 class="text-xl font-extrabold text-slate-900 mb-1 text-center">Want all features now?</h2>
@@ -199,8 +225,8 @@
           </div>
         </div>
 
-        <!-- Step 9: Done -->
-        <div class="onb-step hidden" data-step="9">
+        <!-- Step 10: Done -->
+        <div class="onb-step hidden" data-step="10">
           <div class="text-center mb-6">
             <div class="text-5xl mb-4">🎉</div>
             <h2 class="text-2xl font-extrabold text-slate-900 mb-3">You're all set!</h2>
@@ -210,12 +236,12 @@
 
         <!-- Navigation -->
         <div class="flex items-center gap-3 mt-8">
-          <button id="onb-back" onclick="onbNav(-1)"
+          <button type="button" id="onb-back" onclick="onbNav(-1)"
                   class="hidden text-sm font-semibold text-slate-400 hover:text-slate-700 transition px-4 py-2.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200">
             ← Back
           </button>
           <div class="flex-1"></div>
-          <button id="onb-next" onclick="onbNav(1)"
+          <button type="button" id="onb-next" onclick="onbNav(1)"
                   class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-sm shadow-sm">
             Next →
           </button>
@@ -225,7 +251,7 @@
 
     <script>
     var _onbCurrent  = 1;
-    var _onbTotal    = 9;
+    var _onbTotal    = 10;
     var _onbShowAll  = false;
     var _onbExtraIdx = 0;
 
@@ -374,6 +400,9 @@
       var subjects = Array.from(
         document.querySelectorAll('input[name="onb_hard_subjects[]"]:checked')
       ).map(function(cb) { return cb.value; });
+      var calendars = Array.from(
+        document.querySelectorAll('input[name="onb_google_calendar_ids[]"]:checked')
+      ).map(function(cb) { return cb.value; });
 
       var form = new FormData();
       if (start) form.append('study_start_time', start);
@@ -384,6 +413,7 @@
       form.append('show_all_features',      showAll);
       form.append('color_theme',            theme);
       subjects.forEach(function(s) { form.append('hard_subjects[]', s); });
+      calendars.forEach(function(c) { form.append('included_google_calendar_ids[]', c); });
 
       // Collect extracurricular blocks
       var extraRows = document.querySelectorAll('#onb-extras-container .onb-extra-row');
@@ -412,6 +442,27 @@
         });
       } catch(e) {}
       document.getElementById('onboarding-overlay').remove();
+
+      // After completing onboarding, always clear the dismissed flag so the
+      // prompt gets a fresh chance regardless of prior testing/dismissals.
+      localStorage.removeItem('push_prompt_dismissed');
+
+      if ('Notification' in window && 'PushManager' in window) {
+        var perm = Notification.permission;
+        if (perm === 'default') {
+          // Show our custom prompt so the student can decide
+          var pushPrompt = document.getElementById('push-prompt');
+          if (pushPrompt) {
+            setTimeout(function() { pushPrompt.classList.remove('hidden'); }, 1500);
+          }
+        } else if (perm === 'granted') {
+          // Already granted (e.g. tested in console) — silently subscribe
+          if (typeof window.doSubscribePush === 'function') {
+            window.doSubscribePush();
+          }
+        }
+        // 'denied' → nothing to do; user can enable later in Settings
+      }
     }
 
     // Restore draft theme UI state on reload
@@ -500,6 +551,36 @@
           });
         })();
         </script>
+      <% end %>
+
+      <%# ═══ MISSING CLASSROOM AUTH BANNER ═══ %>
+      <% if @classroom_auth_missing %>
+        <div class="mt-4 md:mt-0 mb-6 bg-rose-50 rounded-3xl shadow-sm border border-rose-200 overflow-hidden">
+          <div class="px-6 py-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+            <div class="p-4 bg-rose-100 text-rose-600 rounded-full flex-shrink-0">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-xl font-extrabold text-rose-900 tracking-tight">Google Classroom Access Required</h3>
+              <p class="text-sm font-medium text-rose-700 mt-2 max-w-xl mx-auto md:mx-0">We lost access to your Google Classroom account, so we can't see your assignments. Please reconnect to continue using Homework Planner.</p>
+            </div>
+            <%= button_to '/auth/google_oauth2', method: :post, data: { turbo: false }, class: "px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition whitespace-nowrap" do %>
+              Reconnect to Google
+            <% end %>
+          </div>
+        </div>
+      <%# ═══ MISSING CALENDAR AUTH BANNER ═══ %>
+      <% elsif @calendar_auth_missing %>
+        <div class="mt-4 md:mt-0 mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+          <div class="p-2 bg-amber-100 text-amber-600 rounded-full flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-bold text-amber-900">Google Calendar connection lost</p>
+            <p class="text-xs text-amber-700 mt-0.5">We can't schedule homework around your events right now.</p>
+          </div>
+          <%= button_to "Reconnect", '/auth/google_oauth2', method: :post, data: { turbo: false }, class: "px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition whitespace-nowrap" %>
+        </div>
       <% end %>
 
       <%# ═══ MOBILE SUMMARY CARD (hidden on md+) ═══ %>
@@ -1139,15 +1220,17 @@
                   assignment_count = day_data[:assignments].size
                   total_minutes    = day_data[:total_minutes]
 
-                  label = if total_minutes > 90 then "Heavy"
+                  label = if total_minutes > 180 then "Heavy"
                   elsif total_minutes > 45 then "Medium"
                   elsif total_minutes > 0 then "Light"
                   else nil end
 
-                  bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
+                  bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 240 * 100, 100].min.round : 0
                   bar_color  = label == "Heavy" ? "bg-rose-400" : (label == "Medium" ? "bg-amber-400" : "bg-emerald-400")
                   label_color = label == "Heavy" ? "weekly-workload-badge weekly-workload-badge--heavy text-rose-600 bg-rose-50 border-transparent" : (label == "Medium" ? "weekly-workload-badge weekly-workload-badge--medium text-amber-600 bg-amber-50 border-transparent" : "weekly-workload-badge weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20" : "bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700/70"
+                  card_class += " border-rose-300" if label == "Heavy"
+                  due_assignments = day_data[:due_assignments] || []
                 %>
 
                 <div class="<%= card_class %> rounded-2xl p-3.5 border border-slate-200 transition flex flex-col gap-2 relative">
@@ -1176,7 +1259,32 @@
                         <span class="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded border <%= label_color %>"><%= label %></span>
                       <% end %>
                     </div>
-                  <% else %>
+                  <% end %>
+
+                  <!-- Due assignments for this day -->
+                  <div class="mt-1 border-t border-slate-200/70 pt-1.5">
+                    <% if due_assignments.any? %>
+                      <ul class="space-y-0.5">
+                        <% due_assignments.each do |da| %>
+                          <%
+                            due_time_str = begin
+                              t = Time.parse(da[:due_date])
+                              (t.hour == 23 && t.min == 59) ? nil : t.strftime("%-I:%M %p")
+                            rescue
+                              nil
+                            end
+                          %>
+                          <li class="text-[11px] leading-snug <%= is_today ? 'font-bold text-slate-800' : 'font-medium text-slate-600' %> truncate" title="<%= da[:title] %>">
+                            · <%= da[:title] %><% if due_time_str %> <span class="font-normal text-slate-400">(<%= due_time_str %>)</span><% end %>
+                          </li>
+                        <% end %>
+                      </ul>
+                    <% else %>
+                      <p class="text-[11px] text-slate-400 italic">Nothing due</p>
+                    <% end %>
+                  </div>
+
+                  <% if assignment_count == 0 && due_assignments.empty? %>
                     <div class="flex items-center gap-1.5 text-slate-400 mt-1">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                       <p class="text-sm font-medium">Free</p>
@@ -1345,277 +1453,6 @@
           </div>
         </section>
         <% end %>
-
-        <!-- Homework Timer -->
-        <% if @tonight_assignments.present? %>
-        <section id="hw-timer-section" class="mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="px-8 py-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-            <div class="p-2 bg-violet-100 rounded-lg">
-              <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </div>
-            <div>
-              <h3 class="text-lg font-bold text-slate-900 tracking-tight">Study Timer</h3>
-              <p class="text-xs text-slate-500 font-medium mt-0.5">Track how long you spend on each assignment</p>
-            </div>
-          </div>
-          <div class="p-6 sm:p-8">
-            <!-- Assignment picker -->
-            <div class="mb-5">
-              <label for="timer-assignment-select" class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Choose an assignment</label>
-              <select id="timer-assignment-select"
-                class="w-full text-sm font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition appearance-none cursor-pointer">
-                <option value="" disabled selected>Select tonight's assignment…</option>
-                <% @tonight_assignments.each do |a| %>
-                  <option value="<%= a[:course_work_id] %>"
-                    data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
-                    data-course="<%= CGI.escapeHTML(a[:class_name].to_s) %>"
-                    data-estimated="<%= a[:minutes].to_i %>">
-                    <%= a[:title].to_s.truncate(60) %> — <%= a[:class_name] %>
-                  </option>
-                <% end %>
-              </select>
-            </div>
-
-            <!-- Timer display -->
-            <div class="bg-slate-50 rounded-2xl px-8 py-6 border border-slate-100">
-              <div class="flex flex-col items-center justify-center">
-                <div id="timer-display" class="text-5xl font-mono font-extrabold text-slate-900 tabular-nums tracking-tight">00:00</div>
-                <div id="timer-status-label" class="text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest">Ready</div>
-              </div>
-
-              <!-- Controls -->
-              <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <button id="timer-start-btn"
-                  type="button"
-                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-md shadow-violet-200 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                  disabled>
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
-                  Start
-                </button>
-                <button id="timer-pause-btn"
-                  type="button"
-                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md shadow-amber-200 transition-all active:scale-95 hidden">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                  Pause
-                </button>
-                <button id="timer-stop-btn"
-                  type="button"
-                  class="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-md shadow-rose-200 transition-all active:scale-95 hidden">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
-                  Done — Save
-                </button>
-              </div>
-            </div>
-
-            <!-- Result card (shown after stop) -->
-            <div id="timer-result" class="hidden mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 items-center gap-4">
-              <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              </div>
-              <div class="flex-1">
-                <p id="timer-result-text" class="text-sm font-semibold text-emerald-800"></p>
-                <p id="timer-result-sub" class="text-xs text-emerald-600 mt-0.5"></p>
-              </div>
-              <button id="timer-reset-btn" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition">Time another</button>
-            </div>
-          </div>
-        </section>
-        <% end %>
-
-<script>
-(function() {
-  const select    = document.getElementById('timer-assignment-select');
-  const display   = document.getElementById('timer-display');
-  const statusLbl = document.getElementById('timer-status-label');
-  const startBtn  = document.getElementById('timer-start-btn');
-  const pauseBtn  = document.getElementById('timer-pause-btn');
-  const stopBtn   = document.getElementById('timer-stop-btn');
-  const resultDiv = document.getElementById('timer-result');
-  const resultTxt = document.getElementById('timer-result-text');
-  const resultSub = document.getElementById('timer-result-sub');
-  const resetBtn  = document.getElementById('timer-reset-btn');
-  const mobileBar         = document.getElementById('mobile-timer-bar');
-  const mobileTimerLabel  = document.getElementById('mobile-timer-label');
-  const mobileTimerElapsed = document.getElementById('mobile-timer-elapsed');
-
-  if (!select) return;
-
-  let sessionId    = null;
-  let elapsed      = 0;   // seconds
-  let intervalId   = null;
-  let running      = false;
-  let startedAt    = null; // wall-clock ms when last "start/resume" pressed
-
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-
-  function pad(n) { return String(n).padStart(2, '0'); }
-
-  function updateDisplay() {
-    const m = Math.floor(elapsed / 60);
-    const s = elapsed % 60;
-    display.textContent = pad(m) + ':' + pad(s);
-  }
-
-  function tick() {
-    elapsed = Math.floor((Date.now() - startedAt) / 1000) + (elapsed - (running ? Math.floor((Date.now() - startedAt) / 1000) : 0));
-    // simpler: track a baseElapsed separately
-  }
-
-  // Re-implement cleanly with baseElapsed
-  let baseElapsed = 0; // seconds accumulated before last resume
-
-  function startTick() {
-    startedAt = Date.now();
-    intervalId = setInterval(() => {
-      elapsed = baseElapsed + Math.floor((Date.now() - startedAt) / 1000);
-      updateDisplay();
-      if (mobileTimerElapsed) mobileTimerElapsed.textContent = display.textContent;
-    }, 500);
-  }
-
-  function stopTick() {
-    if (intervalId) { clearInterval(intervalId); intervalId = null; }
-    baseElapsed = elapsed;
-  }
-
-  function selectedAssignmentOption() {
-    const option = select.options[select.selectedIndex];
-    return option && option.value ? option : null;
-  }
-
-  function syncTimerStartState() {
-    startBtn.disabled = !selectedAssignmentOption() || running || !!sessionId;
-  }
-
-  async function beginSessionForSelectedAssignment() {
-    const opt = selectedAssignmentOption();
-    if (!opt || running || sessionId) return;
-
-    const resp = await fetch('<%= study_sessions_path %>', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-      body: JSON.stringify({
-        study_session: {
-          course_work_id:     opt.value,
-          assignment_title:   opt.dataset.title,
-          course_name:        opt.dataset.course,
-          estimated_minutes:  parseInt(opt.dataset.estimated) || null
-        }
-      })
-    });
-    if (!resp.ok) { alert('Could not start session. Please try again.'); return; }
-
-    const data = await resp.json();
-    sessionId = data.id;
-    running = true;
-    select.disabled = true;
-    startBtn.classList.add('hidden');
-    pauseBtn.classList.remove('hidden');
-    stopBtn.classList.remove('hidden');
-    resultDiv.classList.add('hidden');
-    statusLbl.textContent = 'Running';
-    statusLbl.className = 'text-xs font-semibold text-violet-500 mt-2 uppercase tracking-widest';
-    startTick();
-    if (mobileBar) {
-      if (mobileTimerLabel) mobileTimerLabel.textContent = opt.dataset.title || 'Timer running';
-      mobileBar.classList.remove('hidden');
-    }
-  }
-
-  select.addEventListener('change', syncTimerStartState);
-  select.addEventListener('input', syncTimerStartState);
-
-  startBtn.addEventListener('click', (event) => {
-    event.preventDefault();
-    beginSessionForSelectedAssignment();
-  });
-
-  pauseBtn.addEventListener('click', () => {
-    if (!sessionId) return;
-
-    if (!running) {
-      running = true;
-      statusLbl.textContent = 'Running';
-      statusLbl.className = 'text-xs font-semibold text-violet-500 mt-2 uppercase tracking-widest';
-      pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
-      startTick();
-      return;
-    }
-
-    running = false;
-    stopTick();
-    statusLbl.textContent = 'Paused';
-    statusLbl.className = 'text-xs font-semibold text-amber-500 mt-2 uppercase tracking-widest';
-    pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg> Resume';
-  });
-
-  stopBtn.addEventListener('click', async () => {
-    stopTick();
-    running = false;
-
-    const actualMinutes = Math.max(1, Math.round(elapsed / 60));
-    const opt = select.options[select.selectedIndex];
-    const estimated = parseInt(opt?.dataset.estimated) || 0;
-
-    pauseBtn.classList.add('hidden');
-    stopBtn.classList.add('hidden');
-    statusLbl.textContent = 'Saving…';
-    statusLbl.className = 'text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest';
-
-    if (sessionId) {
-      try {
-        await fetch('/study_sessions/' + sessionId, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-          body: JSON.stringify({ study_session: { actual_minutes: actualMinutes } })
-        });
-      } catch(e) { /* best-effort */ }
-    }
-
-    // Show result
-    const mm = Math.floor(elapsed / 60);
-    const ss = elapsed % 60;
-    const timeStr = mm > 0 ? mm + 'm ' + ss + 's' : ss + 's';
-    resultTxt.textContent = 'Saved! You spent ' + timeStr + ' on "' + (opt?.dataset.title || 'this assignment') + '".';
-    if (estimated > 0) {
-      const diff = actualMinutes - estimated;
-      if (diff > 2)       resultSub.textContent = 'Took ' + diff + ' min longer than estimated (' + estimated + ' min). We\'ll adjust future estimates.';
-      else if (diff < -2) resultSub.textContent = 'Finished ' + Math.abs(diff) + ' min faster than estimated — nice work!';
-      else                resultSub.textContent = 'Right on estimate (' + estimated + ' min). Great planning!';
-    } else {
-      resultSub.textContent = '';
-    }
-    resultDiv.classList.remove('hidden');
-    resultDiv.classList.add('flex');
-    statusLbl.textContent = 'Done';
-    statusLbl.className = 'text-xs font-semibold text-emerald-500 mt-2 uppercase tracking-widest';
-    if (mobileBar) mobileBar.classList.add('hidden');
-  });
-
-  resetBtn.addEventListener('click', () => {
-    sessionId   = null;
-    elapsed     = 0;
-    baseElapsed = 0;
-    running     = false;
-    select.disabled = false;
-    select.value = '';
-    startBtn.classList.remove('hidden');
-    syncTimerStartState();
-    pauseBtn.classList.add('hidden');
-    pauseBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg> Pause';
-    stopBtn.classList.add('hidden');
-    resultDiv.classList.add('hidden');
-    resultDiv.classList.remove('flex');
-    if (mobileBar) mobileBar.classList.add('hidden');
-    display.textContent = '00:00';
-    statusLbl.textContent = 'Ready';
-    statusLbl.className = 'text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest';
-    updateDisplay();
-  });
-
-  syncTimerStartState();
-})();
-</script>
 
         <!-- Active Classes (desktop only) -->
         <section class="hidden md:block mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1814,6 +1651,7 @@
   const LEGACY_CRUNCH_CACHE_PREFIX = 'crunch_tasks_';
   let nudgeIndex = 0;
   let tasks = [], activeId = null, crunchStartTime = null, crunchTitle = '', crunchCourse = '';
+  let sessionSaved = false;
 
   // Pomodoro state
   const DEFAULT_WORK_SECS = 25 * 60, BREAK_SECS = 5 * 60;
@@ -1858,6 +1696,7 @@
     crunchStartTime = Date.now();
     crunchTitle = title;
     crunchCourse = course;
+    sessionSaved = false;
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     titleEl.textContent  = title;
@@ -2057,12 +1896,34 @@
   const reflectionClose = document.getElementById('crunch-reflection-close');
   if (reflectionClose) reflectionClose.addEventListener('click', closeCrunch);
 
+  async function savePassiveSession(workedMins) {
+    if (sessionSaved || workedMins < 1 || !activeId) return;
+    sessionSaved = true;
+    try {
+      await fetch('/study_sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({
+          study_session: {
+            course_work_id:     activeId,
+            assignment_title:   crunchTitle,
+            course_name:        crunchCourse,
+            actual_minutes:     workedMins
+          }
+        })
+      });
+    } catch(e) { console.error('Failed to passive save session', e); }
+  }
+
   function showReflection(allDone) {
     clearInterval(pomoInterval); pomoRunning = false;
     const workedMs   = crunchStartTime ? Date.now() - crunchStartTime : 0;
     const workedMins = Math.max(1, Math.round(workedMs / 60000));
     const doneTasks  = tasks.filter(t => t.done).length;
     const totalTasks = tasks.length;
+    
+    savePassiveSession(workedMins);
+
     const endTime    = new Date();
     const hh = String(endTime.getHours()).padStart(2, '0');
     const mm = String(endTime.getMinutes()).padStart(2, '0');
@@ -2085,9 +1946,13 @@
 
   function closeCrunch() {
     clearInterval(pomoInterval); pomoRunning = false;
+    const workedMs   = crunchStartTime ? Date.now() - crunchStartTime : 0;
+    const workedMins = Math.round(workedMs / 60000);
+    savePassiveSession(workedMins);
+
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
-    tasks = []; activeId = null; crunchStartTime = null;
+    tasks = []; activeId = null; crunchStartTime = null; sessionSaved = false;
     taskList.style.display = '';
     if (reflectionEl) reflectionEl.classList.add('hidden');
   }
@@ -2172,12 +2037,13 @@
 (function() {
   const PENDING_KEY = 'hw_estimates_pending';
   const hasPending = <%= @any_pending_estimates ? 'true' : 'false' %>;
+  const isOnboarding = <%= @onboarding ? 'true' : 'false' %>;
 
-  if (hasPending) {
+  if (hasPending && !isOnboarding) {
     // Mark pending in localStorage and poll every 15s
     localStorage.setItem(PENDING_KEY, '1');
     setTimeout(function() { location.reload(); }, 15000);
-  } else if (localStorage.getItem(PENDING_KEY)) {
+  } else if (!isOnboarding && localStorage.getItem(PENDING_KEY)) {
     // Estimates just resolved — show toast and clear flag
     localStorage.removeItem(PENDING_KEY);
     var toast = document.getElementById('estimates-toast');

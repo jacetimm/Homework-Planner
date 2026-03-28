@@ -11,6 +11,8 @@ class DashboardBuilder
     :calibration_nudges,
     :any_pending_estimates,
     :syncing,
+    :classroom_auth_missing,
+    :calendar_auth_missing,
     keyword_init: true
   )
 
@@ -19,10 +21,16 @@ class DashboardBuilder
     @user_setting  = UserSetting.for_user(current_user)
     @calibration_nudges = []
     @syncing = false
+    @classroom_auth_missing = false
+    @calendar_auth_missing  = false
   end
 
   def call
     courses, all_assignments = fetch_assignments
+    
+    hidden_ids = @current_user.hidden_assignments.pluck(:course_work_id).to_set
+    all_assignments.reject! { |a| hidden_ids.include?(a[:course_work_id].to_s) }
+
     merge_estimates(all_assignments)
     apply_calibration(all_assignments)
     enrich_metadata(all_assignments)
@@ -47,7 +55,9 @@ class DashboardBuilder
       streak:                 calculate_streak,
       calibration_nudges:     @calibration_nudges,
       any_pending_estimates:  all_assignments.any? { |a| a[:estimate_source] == :pending },
-      syncing:                @syncing
+      syncing:                @syncing,
+      classroom_auth_missing: @classroom_auth_missing,
+      calendar_auth_missing:  @calendar_auth_missing
     )
   end
 
@@ -72,11 +82,17 @@ class DashboardBuilder
     end
 
     # No cache yet (first load) — fetch synchronously and populate cache
-    classroom_service = ClassroomService.new(@current_user.access_token, @user_setting)
-    courses     = classroom_service.courses
-    assignments = classroom_service.assignments
-    cache.store!(courses: courses, assignments: assignments)
-    [ courses, assignments ]
+    begin
+      classroom_service = ClassroomService.new(@current_user.access_token, @user_setting)
+      courses     = classroom_service.courses
+      assignments = classroom_service.assignments
+      cache.store!(courses: courses, assignments: assignments)
+      [ courses, assignments ]
+    rescue Google::Apis::AuthorizationError, Google::Apis::ClientError => e
+      Rails.logger.warn("[DashboardBuilder] Classroom auth error: #{e.message}")
+      @classroom_auth_missing = true
+      [ [], [] ]
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -239,9 +255,19 @@ class DashboardBuilder
         end_m:   end_minutes
       }
     end
+  rescue Google::Apis::AuthorizationError => e
+    Rails.logger.warn("[Dashboard] Calendar auth error: #{e.message}")
+    @calendar_auth_missing = true
+    []
+  rescue Google::Apis::ClientError => e
+    if e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")
+      Rails.logger.warn("[Dashboard] Calendar auth error: #{e.message}")
+      @calendar_auth_missing = true
+    else
+      Rails.logger.error("[Dashboard] Failed to load calendar blocks: #{e.message}")
+    end
+    []
   rescue StandardError => e
-    raise e if e.is_a?(Google::Apis::AuthorizationError) ||
-               (e.is_a?(Google::Apis::ClientError) && (e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")))
     Rails.logger.error("[Dashboard] Failed to load calendar blocks: #{e.message}")
     []
   end
@@ -272,7 +298,7 @@ class DashboardBuilder
   # ---------------------------------------------------------------------------
 
   def build_schedule(all_assignments, nightly_capacity, tonight_capacity, calendar_blocks)
-    HomeworkScheduler.new(
+    schedule = HomeworkScheduler.new(
       nightly_capacity:       nightly_capacity,
       tonight_capacity:       tonight_capacity,
       study_start_time:       @user_setting.study_start_time,
@@ -284,6 +310,19 @@ class DashboardBuilder
       calendar_busy_blocks:   calendar_blocks,
       max_per_subject:        @user_setting.max_minutes_per_subject.to_i
     ).schedule(all_assignments)
+
+    # Attach due assignments to each date in the schedule
+    (0..14).each do |offset|
+      date_str = (Date.current + offset).to_s
+      next unless schedule[date_str]
+
+      schedule[date_str][:due_assignments] = all_assignments.select do |a|
+        next false unless a[:due_date]
+        begin Date.parse(a[:due_date]).to_s == date_str rescue false end
+      end.sort_by { |a| a[:due_date].to_s }
+    end
+
+    schedule
   end
 
   # ---------------------------------------------------------------------------

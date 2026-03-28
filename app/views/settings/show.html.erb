@@ -280,6 +280,39 @@
         </div>
       </div>
 
+      <!-- Section: Push Notifications -->
+      <div class="p-4 sm:p-8" id="notifications-section">
+        <h3 class="text-base font-bold text-slate-900 mb-0.5">Push Notifications</h3>
+        <p class="text-sm text-slate-500 mb-5">Get a nudge on your phone when an assignment is due soon and you haven't started yet.</p>
+
+        <label class="flex items-center gap-4 cursor-pointer group">
+          <%= f.check_box :push_notifications_enabled,
+                          class: "sr-only peer",
+                          id: "push_notifications_toggle",
+                          onchange: "window.togglePushNotifications && window.togglePushNotifications(this.checked)" %>
+          <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 flex-shrink-0"></div>
+          <div>
+            <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Enable push notifications</p>
+            <p class="text-xs text-slate-500 mt-0.5">Reminders are only sent for assignments due within 24 hours that you haven't started.</p>
+          </div>
+        </label>
+
+        <div id="push-status-msg" class="mt-3 text-xs text-slate-400"></div>
+        <script>
+          (function() {
+            var el = document.getElementById('push-status-msg');
+            if (!el || !('Notification' in window)) return;
+            if (Notification.permission === 'denied') {
+              el.textContent = 'Notifications are blocked in your browser settings. To re-enable, update your browser permissions for this site.';
+              el.classList.add('text-rose-500');
+            } else if (Notification.permission === 'granted') {
+              el.textContent = 'Browser notifications are enabled.';
+              el.classList.add('text-emerald-600');
+            }
+          })();
+        </script>
+      </div>
+
       <!-- Section 7: Feature Visibility -->
       <div class="p-4 sm:p-8">
         <h3 class="text-base font-bold text-slate-900 mb-0.5">Feature Visibility</h3>
@@ -296,6 +329,28 @@
       </div>
 
     <% end %>
+
+    <!-- Section 8: Hidden Assignments -->
+    <% hidden_items = current_user.hidden_assignments.order(hidden_at: :desc) %>
+    <% if hidden_items.any? %>
+      <div class="p-4 sm:p-8 border-t border-slate-100" id="hidden_assignments_section">
+        <h3 class="text-base font-bold text-slate-900 mb-0.5">Hidden Assignments</h3>
+        <p class="text-sm text-slate-500 mb-5">These assignments have been hidden from your dashboard. You can unhide them here.</p>
+
+        <div class="space-y-3">
+          <% hidden_items.each do |hidden_assignment| %>
+            <div id="hidden_assignment_row_<%= hidden_assignment.course_work_id %>" class="flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,1)]">
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5 truncate"><%= hidden_assignment.course_name %></p>
+                <p class="text-sm font-semibold text-slate-900 truncate"><%= hidden_assignment.assignment_title %></p>
+              </div>
+              <%= button_to "Show again", hidden_assignment_path(hidden_assignment.course_work_id), method: :delete, class: "flex-shrink-0 text-xs font-bold bg-white hover:bg-slate-100 text-indigo-600 border border-slate-300 hover:border-indigo-300 rounded-lg px-3 py-2 transition shadow-sm whitespace-nowrap cursor-pointer" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
   </div>
 
   <!-- Sticky Save Bar -->

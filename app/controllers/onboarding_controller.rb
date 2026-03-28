@@ -47,6 +47,18 @@ class OnboardingController < ApplicationController
       end
     end
 
+    if params.key?(:included_google_calendar_ids)
+      included_ids = Array(params[:included_google_calendar_ids]).reject(&:blank?)
+      begin
+        all_calendar_ids = CalendarService.new(current_user.access_token).calendars.map { |c| c[:id].to_s }
+        ignored_ids = all_calendar_ids - included_ids
+        setting.ignored_google_calendar_ids = ignored_ids
+        setting.block_google_calendar_events = included_ids.any?
+      rescue StandardError => e
+        Rails.logger.warn("[Onboarding] Could not fetch calendars to invert selection: #{e.message}")
+      end
+    end
+
     setting.onboarding_completed = true
     setting.save(validate: false)
 

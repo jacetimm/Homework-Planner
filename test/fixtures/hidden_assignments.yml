@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  course_work_id: MyString
+  course_name: MyString
+  assignment_title: MyString
+  hidden_at: 2026-03-27 19:57:17
+
+two:
+  user: two
+  course_work_id: MyString
+  course_name: MyString
+  assignment_title: MyString
+  hidden_at: 2026-03-27 19:57:17

@@ -72,3 +72,4 @@ gem "google-apis-calendar_v3", "~> 0.53.0"
 
 gem "oauth2", "~> 2.0"
 gem "rack-attack"
+gem "web-push"

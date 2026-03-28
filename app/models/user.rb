@@ -9,8 +9,10 @@ class User < ApplicationRecord
   has_many :study_sessions,         dependent: :destroy
   has_many :assignment_reestimates, dependent: :destroy
   has_many :assignment_alerts,      dependent: :destroy
+  has_many :hidden_assignments,     dependent: :destroy
   has_one  :classroom_cache,        dependent: :destroy
   has_one  :calendar_cache,         dependent: :destroy
+  has_many :push_subscriptions,     dependent: :destroy
 
   validates :email,      presence: true, uniqueness: true
   validates :google_uid, presence: true, uniqueness: true

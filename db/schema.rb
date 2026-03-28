@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_26_000002) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_28_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -76,6 +76,29 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_000002) do
     t.index ["user_id"], name: "index_classroom_caches_on_user_id", unique: true
   end
 
+  create_table "hidden_assignments", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "course_work_id", null: false
+    t.string "course_name"
+    t.string "assignment_title"
+    t.datetime "hidden_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "course_work_id"], name: "index_hidden_assignments_on_user_id_and_course_work_id", unique: true
+    t.index ["user_id"], name: "index_hidden_assignments_on_user_id"
+  end
+
+  create_table "push_subscriptions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.text "endpoint", null: false
+    t.text "p256dh_key", null: false
+    t.text "auth_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "endpoint"], name: "index_push_subscriptions_on_user_id_and_endpoint", unique: true
+    t.index ["user_id"], name: "index_push_subscriptions_on_user_id"
+  end
+
   create_table "study_sessions", force: :cascade do |t|
     t.string "course_work_id", null: false
     t.string "user_email", null: false
@@ -115,6 +138,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_000002) do
     t.datetime "first_visited_at"
     t.date "last_visit_date"
     t.string "color_theme", default: "auto", null: false
+    t.boolean "push_notifications_enabled", default: true, null: false
     t.index ["user_email"], name: "index_user_settings_on_user_email"
     t.index ["user_id"], name: "index_user_settings_on_user_id", unique: true
   end
@@ -139,6 +163,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_000002) do
   add_foreign_key "assignment_reestimates", "users"
   add_foreign_key "calendar_caches", "users"
   add_foreign_key "classroom_caches", "users"
+  add_foreign_key "hidden_assignments", "users"
+  add_foreign_key "push_subscriptions", "users"
   add_foreign_key "study_sessions", "users"
   add_foreign_key "user_settings", "users"
 end

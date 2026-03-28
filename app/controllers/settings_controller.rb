@@ -64,6 +64,7 @@ class SettingsController < ApplicationController
       :color_theme,
       :show_all_features,
       :block_google_calendar_events,
+      :push_notifications_enabled,
       included_google_calendar_ids: [],
       hard_subjects: []
     )

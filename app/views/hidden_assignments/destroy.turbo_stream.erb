@@ -1,0 +1,4 @@
+<%= turbo_stream.remove "hidden_assignment_row_#{@hidden_assignment.course_work_id}" %>
+<% if current_user.hidden_assignments.count == 0 %>
+  <%= turbo_stream.remove "hidden_assignments_section" %>
+<% end %>

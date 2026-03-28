@@ -2,13 +2,14 @@ self.addEventListener("push", async (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
 
-  const title   = data.title || "Homework Planner";
+  const title = data.title || "Homework Planner";
   const options = {
-    body:  data.body  || "",
-    icon:  "/icon.png",
+    body: data.body || "",
+    icon: "/icon.png",
     badge: "/icon.png",
-    data:  { path: data.path || "/" }
+    data: { path: data.path || "/" }
   };
+
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

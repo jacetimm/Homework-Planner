@@ -15,6 +15,15 @@ class DashboardController < ApplicationController
 
     @onboarding = !@user_setting.onboarding_completed?
 
+    if @onboarding
+      begin
+        @google_calendars = CalendarService.new(current_user.access_token).calendars
+      rescue Google::Apis::AuthorizationError, Google::Apis::ClientError => e
+        Rails.logger.warn("[DashboardController] Auth error fetching calendars for onboarding: #{e.message}")
+        @google_calendars = []
+      end
+    end
+
     result = DashboardBuilder.new(current_user).call
 
     completed_sessions = StudySession.where(user_id: current_user.id).where.not(actual_minutes: nil).count
@@ -32,6 +41,8 @@ class DashboardController < ApplicationController
     @calibration_nudges      = result.calibration_nudges
     @any_pending_estimates   = result.any_pending_estimates
     @syncing                 = result.syncing
+    @classroom_auth_missing  = result.classroom_auth_missing
+    @calendar_auth_missing   = result.calendar_auth_missing
   end
 
   def sync

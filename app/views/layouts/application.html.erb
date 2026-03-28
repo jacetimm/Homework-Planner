@@ -54,6 +54,10 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
+    <% vapid_key = Rails.application.credentials.dig(:vapid, :public_key) %>
+    <% if vapid_key.present? %>
+      <meta name="vapid-public-key" content="<%= vapid_key %>">
+    <% end %>
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
@@ -179,6 +183,195 @@
         </div>
       </nav>
 
+    <% end %>
+
+    <% if current_user %>
+      <!-- Service Worker & Push Notification Support -->
+      <script>
+      (function() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+
+        // Always read these fresh from the DOM — never cache in a closure variable
+        // so stale values from a prior page load can't cause silent failures.
+        function vapidKey()  { var m = document.querySelector('meta[name="vapid-public-key"]');  return m ? m.content : null; }
+        function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]');         return m ? m.content : null; }
+
+        function b64ToUint8(str) {
+          var pad = '='.repeat((4 - str.length % 4) % 4);
+          var raw = atob((str + pad).replace(/-/g, '+').replace(/_/g, '/'));
+          var arr = new Uint8Array(raw.length);
+          for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+          return arr;
+        }
+
+        // Core: subscribe and POST to server. Always uses navigator.serviceWorker.ready.
+        function doSubscribe() {
+          var key = vapidKey();
+          if (!key) { console.warn('[Push] vapid-public-key meta tag missing or empty'); return; }
+          console.log('[Push] doSubscribe() starting, waiting for SW ready...');
+          navigator.serviceWorker.ready.then(function(reg) {
+            console.log('[Push] SW ready, calling pushManager.subscribe()');
+            return reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: b64ToUint8(key)
+            });
+          }).then(function(sub) {
+            console.log('[Push] subscribed:', sub.endpoint);
+            var j = sub.toJSON();
+            return fetch('/push_subscriptions', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() },
+              body:    JSON.stringify({ endpoint: j.endpoint, p256dh_key: j.keys && j.keys.p256dh, auth_key: j.keys && j.keys.auth })
+            });
+          }).then(function(r) {
+            console.log('[Push] subscription saved, status:', r.status);
+          }).catch(function(err) {
+            console.warn('[Push] doSubscribe failed:', err);
+          });
+        }
+
+        function doUnsubscribe() {
+          navigator.serviceWorker.ready.then(function(reg) {
+            return reg.pushManager.getSubscription();
+          }).then(function(sub) {
+            if (!sub) return;
+            var endpoint = sub.endpoint;
+            return sub.unsubscribe().then(function() {
+              fetch('/push_subscriptions/' + encodeURIComponent(endpoint), {
+                method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken() }
+              });
+            });
+          }).catch(function() {});
+        }
+
+        // Settings toggle
+        window.togglePushNotifications = function(enabled) {
+          if (!enabled) { doUnsubscribe(); return; }
+          if (Notification.permission === 'granted') { doSubscribe(); return; }
+          // Need to ask first — requestPermission must come from a user gesture,
+          // so the settings checkbox click counts as one.
+          Notification.requestPermission().then(function(p) {
+            if (p === 'granted') doSubscribe();
+          }).catch(function() {});
+        };
+
+        // Register SW early so it's active before user clicks Allow
+        navigator.serviceWorker.register('/service-worker').catch(function(err) {
+          console.warn('[Push] SW registration failed:', err);
+        });
+
+        // If already granted on page load, make sure subscription is current
+        if (Notification.permission === 'granted' && vapidKey()) {
+          navigator.serviceWorker.ready.then(function(reg) {
+            return reg.pushManager.getSubscription();
+          }).then(function(sub) {
+            if (!sub) doSubscribe();
+          }).catch(function() {});
+        }
+
+        // Expose for onboarding completion handler
+        window.doSubscribePush = doSubscribe;
+      })();
+      </script>
+    <% end %>
+
+    <% if current_user %>
+    <!-- Push Notification Permission Prompt (shown via JS) -->
+    <div id="push-prompt" class="hidden fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50">
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-4 flex gap-3 items-start">
+        <div class="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex-shrink-0">
+          <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-bold text-slate-900 dark:text-slate-100">Want reminders when assignments are due soon?</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">We'll nudge you before deadlines so nothing sneaks up on you.</p>
+          <div class="flex gap-2 mt-3">
+            <button id="push-prompt-allow" type="button" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2 px-3 rounded-xl transition">Allow</button>
+            <button onclick="(function(){var el=document.getElementById('push-prompt');if(el)el.remove();localStorage.setItem('push_prompt_dismissed','1');})()" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold py-2 px-3 rounded-xl transition">Not now</button>
+          </div>
+        </div>
+        <button onclick="(function(){var el=document.getElementById('push-prompt');if(el)el.remove();localStorage.setItem('push_prompt_dismissed','1');})()" class="text-slate-400 hover:text-slate-600 flex-shrink-0 leading-none text-lg -mt-0.5">&times;</button>
+      </div>
+    </div>
+    <!-- Shown if user denies permission -->
+    <div id="push-denied-msg" class="hidden fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50">
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-4 flex gap-3 items-start">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-slate-600 dark:text-slate-300">You can enable notifications later in <a href="/settings#notifications-section" class="font-bold text-indigo-600 underline">Settings</a>.</p>
+        </div>
+        <button onclick="document.getElementById('push-denied-msg').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 flex-shrink-0 leading-none text-lg -mt-0.5">&times;</button>
+      </div>
+    </div>
+    <script>
+    // ── Push prompt display + Allow button wiring ─────────────────────────────
+    // This script tag sits immediately after the prompt HTML so the elements are
+    // already in the DOM — no DOMContentLoaded race, no Turbo dependency.
+    (function() {
+      // Wire the Allow button with a fully self-contained click handler.
+      // We do NOT rely on window.requestPushPermission so this works even if the
+      // main push IIFE above failed or hasn't run yet.
+      var allowBtn = document.getElementById('push-prompt-allow');
+      if (allowBtn) {
+        allowBtn.addEventListener('click', function() {
+          if (!('Notification' in window)) return;
+
+          allowBtn.disabled = true;
+          allowBtn.textContent = '...';
+
+          function afterPermission(permission) {
+            var prompt = document.getElementById('push-prompt');
+            if (prompt) prompt.remove();
+            localStorage.setItem('push_prompt_dismissed', '1');
+
+            if (permission === 'granted') {
+              // Call the single subscribe function defined in the push IIFE above.
+              // It reads vapid key fresh from the DOM and uses navigator.serviceWorker.ready.
+              if (typeof window.doSubscribePush === 'function') {
+                window.doSubscribePush();
+              }
+            } else {
+              var denied = document.getElementById('push-denied-msg');
+              if (denied) denied.classList.remove('hidden');
+            }
+          }
+
+          // Call requestPermission — handle both Promise (modern) and callback (old Safari)
+          var req;
+          try {
+            req = Notification.requestPermission(function(p) {
+              // Old Safari callback path — only fires if req is undefined/not-a-Promise
+              afterPermission(p);
+            });
+          } catch(e) {
+            console.warn('[Push] requestPermission threw:', e);
+            allowBtn.disabled = false;
+            allowBtn.textContent = 'Allow';
+            return;
+          }
+
+          if (req && typeof req.then === 'function') {
+            // Modern browsers: use the returned Promise
+            req.then(afterPermission).catch(function() {
+              allowBtn.disabled = false;
+              allowBtn.textContent = 'Allow';
+            });
+          }
+        });
+      }
+
+      // Show the prompt after a short delay (skip during onboarding)
+      var vapidKey = document.querySelector('meta[name="vapid-public-key"]');
+      if (!vapidKey || !('Notification' in window) || !('PushManager' in window)) return;
+      if (Notification.permission !== 'default') return;
+      if (localStorage.getItem('push_prompt_dismissed')) return;
+      if (document.getElementById('onboarding-overlay')) return;
+      setTimeout(function() {
+        if (document.getElementById('onboarding-overlay')) return;
+        var el = document.getElementById('push-prompt');
+        if (el) el.classList.remove('hidden');
+      }, 3000);
+    })();
+    </script>
     <% end %>
 
   </body>
