@@ -16,11 +16,15 @@ class DashboardController < ApplicationController
     @onboarding = !@user_setting.onboarding_completed?
 
     if @onboarding
-      begin
-        @google_calendars = CalendarService.new(current_user.access_token).calendars
-      rescue Google::Apis::AuthorizationError, Google::Apis::ClientError => e
-        Rails.logger.warn("[DashboardController] Auth error fetching calendars for onboarding: #{e.message}")
-        @google_calendars = []
+      @google_calendars = begin
+        CalendarService.new(current_user.access_token).calendars
+      rescue Google::Apis::AuthorizationError, OAuth2::Error => e
+        Rails.logger.warn("[Dashboard] Calendar auth error during onboarding, refreshing token: #{e.message}")
+        retry_token = current_user.refresh_access_token! rescue nil
+        retry_token ? (CalendarService.new(retry_token).calendars rescue []) : []
+      rescue Google::Apis::ClientError => e
+        Rails.logger.warn("[Dashboard] Calendar client error during onboarding: #{e.message}")
+        []
       end
     end
 

@@ -231,15 +231,9 @@ class DashboardBuilder
     busy_blocks = if cal_cache.fresh?
       cal_cache.blocks
     else
-      raw = CalendarService.new(@current_user.access_token).busy_blocks_between(
-        start_time:            window_start_at,
-        end_time:              window_end_at,
-        ignored_keywords:      @user_setting.calendar_ignored_keywords,
-        ignored_calendar_ids:  @user_setting.ignored_google_calendar_ids,
-        ignore_rules:          @user_setting.calendar_ignore_rules
-      )
-      cal_cache.store!(blocks: raw)
-      raw
+      raw = fetch_calendar_busy_blocks(window_start_at, window_end_at)
+      cal_cache.store!(blocks: raw) if raw
+      raw || []
     end
 
     session_anchor = session_anchor_date(window_start_at, start_m, end_m, crosses_midnight)
@@ -255,21 +249,45 @@ class DashboardBuilder
         end_m:   end_minutes
       }
     end
-  rescue Google::Apis::AuthorizationError => e
-    Rails.logger.warn("[Dashboard] Calendar auth error: #{e.message}")
-    @calendar_auth_missing = true
-    []
-  rescue Google::Apis::ClientError => e
-    if e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")
-      Rails.logger.warn("[Dashboard] Calendar auth error: #{e.message}")
-      @calendar_auth_missing = true
-    else
-      Rails.logger.error("[Dashboard] Failed to load calendar blocks: #{e.message}")
-    end
-    []
   rescue StandardError => e
     Rails.logger.error("[Dashboard] Failed to load calendar blocks: #{e.message}")
     []
+  end
+
+  # Calls Calendar API with the current access token. On a 401/auth error,
+  # silently refreshes the token once and retries before giving up.
+  def fetch_calendar_busy_blocks(window_start_at, window_end_at)
+    calendar_api_call(@current_user.access_token, window_start_at, window_end_at)
+  rescue Google::Apis::AuthorizationError, OAuth2::Error => e
+    try_refresh_and_retry(e, window_start_at, window_end_at)
+  rescue Google::Apis::ClientError => e
+    if e.status_code == 401 || e.message.to_s.match?(/Unauthorized|Invalid Credentials/i)
+      try_refresh_and_retry(e, window_start_at, window_end_at)
+    else
+      Rails.logger.error("[Dashboard] Calendar API error: #{e.message}")
+      nil
+    end
+  end
+
+  def calendar_api_call(token, window_start_at, window_end_at)
+    CalendarService.new(token).busy_blocks_between(
+      start_time:           window_start_at,
+      end_time:             window_end_at,
+      ignored_keywords:     @user_setting.calendar_ignored_keywords,
+      ignored_calendar_ids: @user_setting.ignored_google_calendar_ids,
+      ignore_rules:         @user_setting.calendar_ignore_rules
+    )
+  end
+
+  def try_refresh_and_retry(original_error, window_start_at, window_end_at)
+    Rails.logger.warn("[Dashboard] Calendar token expired, refreshing… (#{original_error.message})")
+    new_token = @current_user.refresh_access_token!
+    Rails.logger.info("[Dashboard] Token refreshed, retrying calendar fetch")
+    calendar_api_call(new_token, window_start_at, window_end_at)
+  rescue StandardError => e
+    Rails.logger.warn("[Dashboard] Calendar token refresh/retry failed: #{e.message}")
+    @calendar_auth_missing = true
+    nil
   end
 
   def manual_busy_blocks(start_m, end_m, crosses_midnight)
