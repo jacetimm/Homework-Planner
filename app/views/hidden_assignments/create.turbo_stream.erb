@@ -1,1 +1,2 @@
 <%= turbo_stream.remove "assignment_card_#{@hidden_assignment.course_work_id}" %>
+<%= turbo_stream.append "body" do %><script>window.location.reload();</script><% end %>

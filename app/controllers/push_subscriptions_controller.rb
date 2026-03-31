@@ -23,6 +23,11 @@ class PushSubscriptionsController < ApplicationController
     head :ok
   end
 
+  def unsubscribe
+    current_user.push_subscriptions.find_by(endpoint: params[:endpoint].to_s.strip)&.destroy
+    head :ok
+  end
+
   private
 
   def require_login

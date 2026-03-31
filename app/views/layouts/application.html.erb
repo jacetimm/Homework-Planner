@@ -4,6 +4,7 @@
     <title><%= content_for(:title) || "Homework Planner" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%# Apply theme immediately before paint to avoid flash of wrong theme %>
@@ -237,8 +238,10 @@
             if (!sub) return;
             var endpoint = sub.endpoint;
             return sub.unsubscribe().then(function() {
-              fetch('/push_subscriptions/' + encodeURIComponent(endpoint), {
-                method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken() }
+              fetch('/push_subscriptions/unsubscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() },
+                body: JSON.stringify({ endpoint: endpoint })
               });
             });
           }).catch(function() {});

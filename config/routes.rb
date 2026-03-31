@@ -18,7 +18,9 @@ Rails.application.routes.draw do
   post "/assignments/:course_work_id/set_estimate", to: "assignments#set_estimate", as: :set_assignment_estimate
   resources :study_sessions, only: [ :create, :update ]
   resources :hidden_assignments, param: :course_work_id, only: [ :create, :destroy ]
-  resources :push_subscriptions, only: [ :create, :destroy ]
+  resources :push_subscriptions, only: [ :create, :destroy ] do
+    collection { post :unsubscribe }
+  end
   get "/crunch/:course_work_id/microtasks", to: "crunch#microtasks", as: :crunch_microtasks
   get "/crunch/:course_work_id",            to: "crunch#show",      as: :crunch_show
 

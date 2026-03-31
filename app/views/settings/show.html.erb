@@ -181,14 +181,16 @@
         <p class="text-sm text-slate-500 mb-5">Block homework time around specific Google Calendar events. Choose which calendars to include, then optionally filter out individual events by keyword.</p>
 
         <div class="space-y-6">
-          <label class="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 bg-slate-50/60 cursor-pointer hover:bg-slate-50 transition">
-            <%= f.check_box :block_google_calendar_events, class: "mt-0.5 h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" %>
+          <label class="flex items-center gap-4 cursor-pointer group">
+            <%= f.check_box :block_google_calendar_events, class: "sr-only peer", id: "block_calendar_toggle", onchange: "document.getElementById('calendar-blocking-details').style.display = this.checked ? '' : 'none'" %>
+            <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 flex-shrink-0"></div>
             <div>
-              <p class="text-sm font-bold text-slate-800">Block homework around Google Calendar events</p>
-              <p class="text-xs text-slate-500 mt-1">Uses the Google account you already signed in with — no extra API key needed.</p>
+              <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Block homework around Google Calendar events</p>
+              <p class="text-xs text-slate-500 mt-0.5">Uses the Google account you already signed in with — no extra API key needed.</p>
             </div>
           </label>
 
+          <div id="calendar-blocking-details" style="<%= @user_setting.block_google_calendar_events? ? '' : 'display:none' %>">
           <div>
             <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
               <div>
@@ -221,7 +223,7 @@
             <% end %>
           </div>
 
-          <div>
+          <div class="mt-6">
             <div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
               <div>
                 <label class="block text-sm font-bold text-slate-700">Ignore Rules</label>
@@ -257,6 +259,7 @@
             </div>
             <p class="text-xs text-slate-400 mt-2">Example: keyword <code class="bg-slate-100 px-1 rounded">dentist</code> on <em>Any Calendar</em> ignores all events with that word.</p>
           </div>
+          </div><%# end calendar-blocking-details %>
         </div>
       </div>
 
@@ -286,10 +289,12 @@
         <p class="text-sm text-slate-500 mb-5">Get a nudge on your phone when an assignment is due soon and you haven't started yet.</p>
 
         <label class="flex items-center gap-4 cursor-pointer group">
-          <%= f.check_box :push_notifications_enabled,
-                          class: "sr-only peer",
-                          id: "push_notifications_toggle",
-                          onchange: "window.togglePushNotifications && window.togglePushNotifications(this.checked)" %>
+          <%= hidden_field_tag "user_setting[push_notifications_enabled]", "0" %>
+          <input type="checkbox" name="user_setting[push_notifications_enabled]" value="1"
+                 id="push_notifications_toggle"
+                 class="sr-only peer"
+                 <%= @user_setting.push_notifications_enabled? ? "checked" : "" %>
+                 onchange="window.togglePushNotifications && window.togglePushNotifications(this.checked); updatePushStatusMsg()">
           <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 flex-shrink-0"></div>
           <div>
             <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Enable push notifications</p>
@@ -299,17 +304,21 @@
 
         <div id="push-status-msg" class="mt-3 text-xs text-slate-400"></div>
         <script>
-          (function() {
+          function updatePushStatusMsg() {
             var el = document.getElementById('push-status-msg');
+            var toggle = document.getElementById('push_notifications_toggle');
             if (!el || !('Notification' in window)) return;
+            el.className = 'mt-3 text-xs text-slate-400';
+            el.textContent = '';
             if (Notification.permission === 'denied') {
               el.textContent = 'Notifications are blocked in your browser settings. To re-enable, update your browser permissions for this site.';
               el.classList.add('text-rose-500');
-            } else if (Notification.permission === 'granted') {
+            } else if (Notification.permission === 'granted' && toggle && toggle.checked) {
               el.textContent = 'Browser notifications are enabled.';
               el.classList.add('text-emerald-600');
             }
-          })();
+          }
+          updatePushStatusMsg();
         </script>
       </div>
 
@@ -319,13 +328,34 @@
         <p class="text-sm text-slate-500 mb-5">By default, advanced features unlock gradually as you use the app. Turn this on to see everything immediately.</p>
 
         <label class="flex items-center gap-4 cursor-pointer group">
-          <%= f.check_box :show_all_features, class: "sr-only peer", id: "show_all_features_toggle" %>
+          <%= hidden_field_tag "user_setting[show_all_features]", "0" %>
+          <input type="checkbox" name="user_setting[show_all_features]" value="1"
+                 id="show_all_features_toggle"
+                 class="sr-only peer"
+                 <%= @user_setting.show_all_features? ? "checked" : "" %>
+                 onchange="updateFeaturesStatusMsg()">
           <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 flex-shrink-0"></div>
           <div>
             <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Show all features</p>
             <p class="text-xs text-slate-500 mt-0.5">Unlock everything now instead of gradually. Great for power users.</p>
           </div>
         </label>
+        <div id="features-status-msg" class="mt-3 text-xs"></div>
+        <script>
+          function updateFeaturesStatusMsg() {
+            var el = document.getElementById('features-status-msg');
+            var toggle = document.getElementById('show_all_features_toggle');
+            if (!el || !toggle) return;
+            if (toggle.checked) {
+              el.textContent = 'All features are enabled.';
+              el.className = 'mt-3 text-xs text-emerald-600';
+            } else {
+              el.textContent = '';
+              el.className = 'mt-3 text-xs';
+            }
+          }
+          updateFeaturesStatusMsg();
+        </script>
       </div>
 
     <% end %>
@@ -333,18 +363,16 @@
     <!-- Section 8: Hidden Assignments -->
     <% hidden_items = current_user.hidden_assignments.order(hidden_at: :desc) %>
     <% if hidden_items.any? %>
-      <div class="p-4 sm:p-8 border-t border-slate-100" id="hidden_assignments_section">
-        <h3 class="text-base font-bold text-slate-900 mb-0.5">Hidden Assignments</h3>
-        <p class="text-sm text-slate-500 mb-5">These assignments have been hidden from your dashboard. You can unhide them here.</p>
-
-        <div class="space-y-3">
+      <div class="px-4 sm:px-8 py-5 border-t border-slate-100" id="hidden_assignments_section">
+        <h3 class="text-sm font-bold text-slate-700 mb-3">Hidden Assignments</h3>
+        <div class="divide-y divide-slate-100">
           <% hidden_items.each do |hidden_assignment| %>
-            <div id="hidden_assignment_row_<%= hidden_assignment.course_work_id %>" class="flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,1)]">
-              <div class="min-w-0 flex-1">
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5 truncate"><%= hidden_assignment.course_name %></p>
-                <p class="text-sm font-semibold text-slate-900 truncate"><%= hidden_assignment.assignment_title %></p>
-              </div>
-              <%= button_to "Show again", hidden_assignment_path(hidden_assignment.course_work_id), method: :delete, class: "flex-shrink-0 text-xs font-bold bg-white hover:bg-slate-100 text-indigo-600 border border-slate-300 hover:border-indigo-300 rounded-lg px-3 py-2 transition shadow-sm whitespace-nowrap cursor-pointer" %>
+            <div id="hidden_assignment_row_<%= hidden_assignment.course_work_id %>" class="flex items-center justify-between gap-3 py-2">
+              <p class="text-sm text-slate-700 truncate min-w-0">
+                <span class="text-slate-400 text-xs mr-1"><%= hidden_assignment.course_name %></span>
+                <%= hidden_assignment.assignment_title %>
+              </p>
+              <%= button_to "Unhide", hidden_assignment_path(hidden_assignment.course_work_id), method: :delete, class: "flex-shrink-0 text-xs font-semibold text-indigo-600 hover:underline bg-transparent border-0 cursor-pointer" %>
             </div>
           <% end %>
         </div>
@@ -366,11 +394,11 @@
 </main>
 
 <script>
-  let extraIndex = <%= @user_setting.extracurricular_blocks.size %>;
-  let calendarRuleIndex = <%= [(@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? }.size, 0].max %>;
-  const calendarData = <%= raw(@google_calendars.map { |c| { id: c[:id], summary: c[:summary] } }.to_json) %>;
-  const calendarOptionsHtml = '<option value="">Any Calendar</option>' + calendarData.map(function(c) { return '<option value="' + c.id.replace(/"/g, '&quot;') + '">' + c.summary.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>'; }).join('');
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var extraIndex = <%= @user_setting.extracurricular_blocks.size %>;
+  var calendarRuleIndex = <%= [(@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? }.size, 0].max %>;
+  var calendarData = <%= raw(@google_calendars.map { |c| { id: c[:id], summary: c[:summary] } }.to_json) %>;
+  var calendarOptionsHtml = '<option value="">Any Calendar</option>' + calendarData.map(function(c) { return '<option value="' + c.id.replace(/"/g, '&quot;') + '">' + c.summary.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>'; }).join('');
+  var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   function setThemeOpt(val) {
     document.getElementById('color-theme-input').value = val;
