@@ -368,7 +368,8 @@
 <script>
   let extraIndex = <%= @user_setting.extracurricular_blocks.size %>;
   let calendarRuleIndex = <%= [(@user_setting.calendar_ignore_rules.presence || []).reject { |r| r["keyword"].blank? && r["calendar_id"].blank? }.size, 0].max %>;
-  const calendarOptionsHtml = `<option value="">Any Calendar</option><%= j(@google_calendars.map { |calendar| "<option value=\"#{h(calendar[:id])}\">#{h(calendar[:summary])}</option>" }.join) %>`;
+  const calendarData = <%= raw(@google_calendars.map { |c| { id: c[:id], summary: c[:summary] } }.to_json) %>;
+  const calendarOptionsHtml = '<option value="">Any Calendar</option>' + calendarData.map(function(c) { return '<option value="' + c.id.replace(/"/g, '&quot;') + '">' + c.summary.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>'; }).join('');
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   function setThemeOpt(val) {

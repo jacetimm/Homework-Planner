@@ -57,7 +57,11 @@
 
   <!-- Status badges row -->
   <div class="flex flex-wrap items-center gap-1.5 mt-2.5">
-    <span class="text-[10px] font-bold px-2 py-0.5 rounded border border-white/15 <%= due_text %> bg-white/10">Due <%= format_due_date(Date.parse(a[:due_date])) %></span>
+    <% if a[:no_due_date] %>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded border border-white/15 text-white/50 bg-white/10">No due date</span>
+    <% else %>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded border border-white/15 <%= due_text %> bg-white/10">Due <%= format_due_date(Date.parse(a[:due_date])) %></span>
+    <% end %>
     <% if a[:urgency] == "overdue" %>
       <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-rose-500/30 text-rose-200 border-rose-400/40">Overdue</span>
     <% end %>

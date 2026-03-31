@@ -13,13 +13,7 @@ class SettingsController < ApplicationController
       @active_courses = []
     end
 
-    begin
-      @google_calendars = CalendarService.new(current_user.access_token).calendars
-    rescue StandardError => e
-      raise e if e.is_a?(Google::Apis::AuthorizationError) || (e.is_a?(Google::Apis::ClientError) && (e.status_code == 401 || e.message.to_s.include?("Unauthorized") || e.message.to_s.include?("Invalid Credentials")))
-      Rails.logger.error "[Settings] Failed to fetch calendars: #{e.message}"
-      @google_calendars = []
-    end
+    @google_calendars = fetch_calendars_with_refresh
 
   end
 
@@ -127,5 +121,29 @@ class SettingsController < ApplicationController
     permitted[:calendar_ignored_keywords] = ignore_rules.select { |rule| rule["calendar_id"].blank? }.map { |rule| rule["keyword"] }.uniq
 
     permitted
+  end
+
+  def fetch_calendars_with_refresh
+    CalendarService.new(current_user.access_token).calendars
+  rescue Google::Apis::AuthorizationError, OAuth2::Error => _e
+    retry_calendars_after_refresh
+  rescue Google::Apis::ClientError => e
+    if e.status_code == 401 || e.message.to_s.match?(/Unauthorized|Invalid Credentials/i)
+      retry_calendars_after_refresh
+    else
+      Rails.logger.error "[Settings] Calendar fetch error: #{e.message}"
+      []
+    end
+  rescue StandardError => e
+    Rails.logger.error "[Settings] Calendar fetch error: #{e.message}"
+    []
+  end
+
+  def retry_calendars_after_refresh
+    new_token = current_user.refresh_access_token!
+    CalendarService.new(new_token).calendars
+  rescue StandardError => e
+    Rails.logger.error "[Settings] Calendar fetch failed after token refresh: #{e.message}"
+    []
   end
 end

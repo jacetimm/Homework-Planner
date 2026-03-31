@@ -28,10 +28,16 @@ class HomeworkScheduler
   def schedule(assignments)
     today = Date.current
     normalized_assignments = Array(assignments).filter_map do |assignment|
-      due_date = normalized_due_date(assignment[:due_date])
-      next unless due_date
+      next if assignment[:state] == "TURNED_IN" || assignment[:state] == "RETURNED"
 
-      assignment.merge(due_date: due_date)
+      due_date = normalized_due_date(assignment[:due_date])
+      if due_date
+        assignment.merge(due_date: due_date)
+      else
+        # No due date — keep with a synthetic far-future date so urgency math works.
+        # Will only get scheduled into leftover tonight capacity (urgency_score = 6).
+        assignment.merge(due_date: today + 30.days, no_due_date: true)
+      end
     end
 
     # 1. Initialize 7-day output
@@ -53,23 +59,27 @@ class HomeworkScheduler
     schedule_hash["wont_fit"]    = []
     schedule_hash["wont_fit_tonight"] = []
 
-    # 2. Filter to actionable assignments due within the next 7 days
+    # 2. Filter to actionable assignments.
+    # Dated assignments: due within 7 days.
+    # No-due-date assignments: always eligible (scheduled into leftover capacity only).
     actionable = normalized_assignments.select do |a|
-      next false if a[:state] == "TURNED_IN" || a[:state] == "RETURNED"
-      next false unless a[:due_date]
-      (a[:due_date] - today).to_i <= 7
+      a[:no_due_date] || (a[:due_date] - today).to_i <= 7
     end
 
     # 3. Score urgency
     actionable.each do |a|
       a[:estimated_minutes] ||= 30
-      days = (a[:due_date] - today).to_i
-      a[:urgency_score] = case
-      when days < 0  then 1
-      when days == 0 then 2
-      when days == 1 then 3
-      when days == 2 then 4
-      else 5
+      a[:urgency_score] = if a[:no_due_date]
+        6 # lowest priority — only fills leftover capacity
+      else
+        days = (a[:due_date] - today).to_i
+        case
+        when days < 0  then 1
+        when days == 0 then 2
+        when days == 1 then 3
+        when days == 2 then 4
+        else 5
+        end
       end
     end
 
@@ -83,19 +93,21 @@ class HomeworkScheduler
       due_date       = assignment[:due_date]
       days_until     = (due_date - today).to_i
 
-      preferred_last_night = days_until <= 0 ? today : due_date - 1.day
-      fallback_last_night  = days_until <= 0 ? today : due_date
+      # No-due-date assignments only fill leftover capacity tonight — don't spread across the week.
+      preferred_last_night = assignment[:no_due_date] ? today : (days_until <= 0 ? today : due_date - 1.day)
+      fallback_last_night  = assignment[:no_due_date] ? today : (days_until <= 0 ? today : due_date)
       last_night           = preferred_last_night
 
-      # Per-subject nightly cap — waived when due tonight/overdue so the student
-      # can finish in time rather than having work pushed to the next day.
-      night_max = if @max_per_subject > 0 && days_until > 0
+      available_nights = [(last_night - today).to_i + 1, 1].max
+
+      # Per-subject nightly cap — waived when due tonight/overdue, OR when there's
+      # only one available night (splitting would just push work to the due date itself,
+      # which is worse than doing it all in one sitting tonight).
+      night_max = if @max_per_subject > 0 && days_until > 0 && available_nights > 1
         @max_per_subject
       else
         total_minutes
       end
-
-      available_nights = [(last_night - today).to_i + 1, 1].max
       ideal_per_night  = (total_minutes.to_f / available_nights).ceil
       is_tight         = @max_per_subject > 0 && ideal_per_night > @max_per_subject
 
@@ -229,6 +241,7 @@ class HomeworkScheduler
     tonight_ids = schedule_hash[today_str][:assignments].map { |entry| entry[:course_work_id].to_s }.uniq
 
     actionable.each do |assignment|
+      next if assignment[:no_due_date] # no deadline — no urgency to surface in "won't fit tonight"
       course_work_id = assignment[:course_work_id].to_s
       next if tonight_ids.include?(course_work_id)
 
@@ -275,9 +288,14 @@ class HomeworkScheduler
       day = schedule_hash[d.to_s]
       if day[:remaining_capacity] > 0 && !already_scheduled_dates.include?(d)
         normal_fitting = [minutes_left, day[:remaining_capacity], night_max].min
-        leftover = minutes_left - normal_fitting
-        # Absorb tiny leftover chunks — don't create splits under 15 min
-        fitting = (leftover > 0 && leftover < 15) ? minutes_left : normal_fitting
+        # Use the full nightly budget (not just remaining_cap) as the absorb ceiling.
+        # This prevents tiny day-splits when previous assignments have consumed some
+        # remaining capacity but the full assignment still fits within one night's budget.
+        fitting = absorb_split_if_tiny(
+          total_minutes: minutes_left,
+          split_minutes: normal_fitting,
+          absorb_limit: @nightly_capacity
+        )
         entry = {
           title:                   assignment[:title],
           course:                  assignment[:class_name],
@@ -285,11 +303,13 @@ class HomeworkScheduler
           full_assignment_minutes: total_minutes,
           assignment_link:         assignment[:assignment_link],
           course_work_id:          assignment[:course_work_id],
-          due_date:                assignment[:due_date].to_s,
+          due_date:                assignment[:no_due_date] ? nil : assignment[:due_date].to_s,
+          no_due_date:             assignment[:no_due_date] || false,
           urgency:                 days_until < 0 ? "overdue" : "upcoming",
           is_tight:                is_tight,
           ideal_per_night:         ideal_per_night,
-          no_buffer_day:           no_buffer_day
+          no_buffer_day:           no_buffer_day,
+          estimate_source:         assignment[:estimate_source]
         }
         day[:assignments] << entry
         added_entries << { date: d, entry: entry }
@@ -304,6 +324,8 @@ class HomeworkScheduler
   end
 
   def classify_priority(assignment)
+    return :can_wait if assignment[:no_due_date]
+
     due_str    = assignment[:due_date]
     due_date   = due_str.is_a?(Date) ? due_str : Date.parse(due_str.to_s)
     days_until = (due_date - Date.current).to_i
@@ -388,15 +410,14 @@ class HomeworkScheduler
       end
 
       normal_study_duration = [queue.first[:minutes_left], available_study_minutes].min
-      leftover = queue.first[:minutes_left] - normal_study_duration
-      study_duration = if leftover > 0 && leftover < 15
-        # Absorb tiny leftover chunks — but only if the full task fits before the next
-        # hard boundary (session end or busy block). Break boundaries are soft and can shift.
-        next_hard_boundary = [end_m - current_m, next_extra_m - current_m].min
-        queue.first[:minutes_left] <= next_hard_boundary ? queue.first[:minutes_left] : normal_study_duration
-      else
-        normal_study_duration
-      end
+      # Break boundaries are soft and can shift, but session end and busy blocks are hard stops.
+      next_hard_boundary = [end_m - current_m, next_extra_m - current_m].min
+      study_duration = absorb_split_if_tiny(
+        total_minutes: queue.first[:minutes_left],
+        split_minutes: normal_study_duration,
+        absorb_limit: next_hard_boundary,
+        check_stub:   true
+      )
 
       break if study_duration <= 0
 
@@ -426,6 +447,17 @@ class HomeworkScheduler
 
   def quick_task?(assignment)
     assignment[:minutes_left].to_i.positive? && assignment[:minutes_left].to_i < QUICK_TASK_THRESHOLD
+  end
+
+  # Absorb the tiny leftover into the current block rather than creating a micro-split.
+  # check_stub: true (timeline only) — also absorb when the PRE-split stub itself is
+  # tiny (≤15 min), i.e. don't start an assignment when only a sliver fits before the
+  # next break.  The scheduler passes check_stub: false so max_per_subject is respected.
+  def absorb_split_if_tiny(total_minutes:, split_minutes:, absorb_limit:, check_stub: false)
+    leftover = total_minutes - split_minutes
+    can_absorb = leftover.positive? && total_minutes <= absorb_limit &&
+                 (leftover <= 15 || (check_stub && split_minutes <= 15))
+    can_absorb ? total_minutes : split_minutes
   end
 
   def consume_quick_tasks(queue, available_study_minutes)

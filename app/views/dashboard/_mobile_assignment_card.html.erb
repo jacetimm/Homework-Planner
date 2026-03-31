@@ -24,7 +24,7 @@
         <p class="text-sm font-bold <%= a[:urgency] == 'overdue' ? 'text-rose-600' : 'text-indigo-600' %>"><%= format_minutes(a[:minutes]) %></p>
       <% end %>
       <p class="text-[11px] text-slate-400 font-medium">
-        <% if days_left && days_left < 0 %>Overdue<% elsif days_left == 0 %>Today<% elsif days_left == 1 %>Tomorrow<% elsif days_left %>In <%= days_left %>d<% end %>
+        <% if a[:no_due_date] %>No due date<% elsif days_left && days_left < 0 %>Overdue<% elsif days_left == 0 %>Today<% elsif days_left == 1 %>Tomorrow<% elsif days_left %>In <%= days_left %>d<% end %>
       </p>
     </div>
     <svg class="mobile-asgn-chevron w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">

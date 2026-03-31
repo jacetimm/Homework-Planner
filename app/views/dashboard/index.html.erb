@@ -708,7 +708,7 @@
           </div>
 
           <%# Compact timeline (first 3 items, expand for rest) %>
-          <% if @flags&.timeline? && _mobile_tl.any? %>
+          <% if (@flags&.timeline? || @flags&.simplified_timeline?) && _mobile_tl.any? %>
             <div class="pb-4 pt-2">
               <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -718,7 +718,7 @@
                     </div>
                     <h3 class="text-sm font-bold text-slate-900">Tonight's Timeline</h3>
                   </div>
-                  <% if _mobile_tl.size > 3 %>
+                  <% if @flags&.timeline? && _mobile_tl.size > 3 %>
                     <button id="mobile-tl-btn" onclick="toggleMobileTimeline()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">See full</button>
                   <% end %>
                 </div>
@@ -747,7 +747,7 @@
                       <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(dur) %></span>
                     </div>
                   <% end %>
-                  <% if _mobile_tl.size > 3 %>
+                  <% if @flags&.timeline? && _mobile_tl.size > 3 %>
                     <div id="mobile-tl-remaining" class="hidden divide-y divide-slate-100">
                       <% _mobile_tl[3..].each do |block| %>
                         <%
@@ -796,8 +796,10 @@
                     is_today = date == Date.current
                     assignment_count = day_data[:assignments].size
                     total_minutes = day_data[:total_minutes]
-                    wlabel = if total_minutes > 90 then "Heavy" elsif total_minutes > 45 then "Medium" elsif total_minutes > 0 then "Light" else nil end
-                    wbar_pct = total_minutes > 0 ? [total_minutes.to_f / 120 * 100, 100].min.round : 0
+                    _nightly_cap = @tonight_summary&.dig(:tonight_capacity).to_i
+                    _nightly_cap = 120 if _nightly_cap <= 0
+                    wlabel = if total_minutes >= _nightly_cap then "Heavy" elsif total_minutes > _nightly_cap * 0.5 then "Medium" elsif total_minutes > 0 then "Light" else nil end
+                    wbar_pct = total_minutes > 0 ? [total_minutes.to_f / _nightly_cap * 100, 100].min.round : 0
                     wbar_color = wlabel == "Heavy" ? "bg-rose-400" : (wlabel == "Medium" ? "bg-amber-400" : "bg-emerald-400")
                     wlabel_color = wlabel == "Heavy" ? "weekly-workload-badge weekly-workload-badge--heavy text-rose-600 bg-rose-50 border-transparent" : (wlabel == "Medium" ? "weekly-workload-badge weekly-workload-badge--medium text-amber-600 bg-amber-50 border-transparent" : "weekly-workload-badge weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   %>
@@ -1220,12 +1222,14 @@
                   assignment_count = day_data[:assignments].size
                   total_minutes    = day_data[:total_minutes]
 
-                  label = if total_minutes > 180 then "Heavy"
-                  elsif total_minutes > 45 then "Medium"
+                  _nightly_cap = @tonight_summary&.dig(:tonight_capacity).to_i
+                  _nightly_cap = 120 if _nightly_cap <= 0
+                  label = if total_minutes >= _nightly_cap then "Heavy"
+                  elsif total_minutes > _nightly_cap * 0.5 then "Medium"
                   elsif total_minutes > 0 then "Light"
                   else nil end
 
-                  bar_pct    = total_minutes > 0 ? [total_minutes.to_f / 240 * 100, 100].min.round : 0
+                  bar_pct    = total_minutes > 0 ? [total_minutes.to_f / _nightly_cap * 100, 100].min.round : 0
                   bar_color  = label == "Heavy" ? "bg-rose-400" : (label == "Medium" ? "bg-amber-400" : "bg-emerald-400")
                   label_color = label == "Heavy" ? "weekly-workload-badge weekly-workload-badge--heavy text-rose-600 bg-rose-50 border-transparent" : (label == "Medium" ? "weekly-workload-badge weekly-workload-badge--medium text-amber-600 bg-amber-50 border-transparent" : "weekly-workload-badge weekly-workload-badge--light text-emerald-600 bg-emerald-50 border-transparent")
                   card_class = is_today ? "ring-2 ring-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20" : "bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700/70"
@@ -1305,7 +1309,7 @@
           _needed       = @tonight_summary[:total_minutes].to_i
           _overflow     = @schedule["wont_fit"]&.any?
         %>
-        <% if @flags&.timeline? && _timeline.any? %>
+        <% if (@flags&.timeline? || @flags&.simplified_timeline?) && _timeline.any? %>
         <section id="desktop-timeline-section" class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
 
           <!-- Header -->
@@ -1316,6 +1320,7 @@
               </div>
               <h3 class="text-lg font-bold text-slate-900 tracking-tight">Tonight's Timeline</h3>
             </div>
+            <% if @flags&.timeline? %>
             <div class="flex items-center gap-2 flex-wrap">
               <div class="hidden sm:flex flex-wrap gap-2.5 text-[11px] font-semibold text-slate-400">
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>Urgent</span>
@@ -1327,8 +1332,10 @@
               </div>
               <button id="timeline-toggle" onclick="(function(){ var body = document.getElementById('timeline-body'); var btn = document.getElementById('timeline-toggle'); var collapsed = body.style.display === 'none'; body.style.display = collapsed ? '' : 'none'; btn.textContent = collapsed ? '▲ Collapse' : '▼ Expand'; })()" class="text-xs font-bold text-slate-400 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition whitespace-nowrap">▲ Collapse</button>
             </div>
+            <% end %>
           </div>
 
+          <% if @flags&.timeline? %>
           <!-- Summary card -->
           <div class="px-6 pt-4 pb-0">
             <div class="rounded-2xl border <%= _overflow ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50' %> px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
@@ -1357,6 +1364,7 @@
               </div>
             <% end %>
           </div>
+          <% end %>
 
           <!-- Condensed timeline rows -->
           <div id="timeline-body" class="px-3 sm:px-6 py-4">
@@ -1397,7 +1405,7 @@
                   <!-- Dot -->
                   <span class="w-2.5 h-2.5 rounded-full <%= dot %> flex-shrink-0 ring-2 ring-white shadow-sm"></span>
                   <!-- Label -->
-                  <% if block[:type] == "quick_tasks" %>
+                  <% if @flags&.timeline? && block[:type] == "quick_tasks" %>
                     <details class="flex-1 group/details">
                       <summary class="list-none cursor-pointer">
                         <div class="flex items-center gap-3 min-w-0">
@@ -1426,17 +1434,17 @@
                         </div>
                       </div>
                     </details>
-                  <% elsif block[:type] == "study" && block[:link].present? %>
+                  <% elsif @flags&.timeline? && block[:type] == "study" && block[:link].present? %>
                     <a href="<%= block[:link] %>" target="_blank" rel="noopener" class="text-sm font-semibold <%= row_text %> truncate flex-1 hover:text-indigo-600 transition-colors"><%= label %></a>
                   <% else %>
                     <span class="text-sm font-semibold <%= row_text %> truncate flex-1"><%= label %></span>
                   <% end %>
-                  <!-- Sub-label (course / type) -->
-                  <% if sub.present? && block[:type] != "quick_tasks" %>
+                  <!-- Sub-label (course / type) — full mode only -->
+                  <% if @flags&.timeline? && sub.present? && block[:type] != "quick_tasks" %>
                     <span class="text-[11px] font-medium <%= sub_text %> hidden sm:block flex-shrink-0 truncate max-w-[8rem]"><%= sub %></span>
                   <% end %>
                   <!-- Duration -->
-                  <% unless block[:type] == "quick_tasks" %>
+                  <% unless @flags&.timeline? && block[:type] == "quick_tasks" %>
                     <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(duration) %></span>
                   <% end %>
                 </div>
@@ -1887,6 +1895,8 @@
   });
 
   closeBtn.addEventListener('click', () => {
+    const reflectionVisible = reflectionEl && !reflectionEl.classList.contains('hidden');
+    if (reflectionVisible) { closeCrunch(); return; }
     const anyDone = tasks.some(t => t.done);
     if (anyDone) { showReflection(false); } else { closeCrunch(); }
   });
@@ -2093,6 +2103,26 @@ document.addEventListener('DOMContentLoaded', function() {
   var params = new URLSearchParams(window.location.search);
   if (params.get('tab') === 'weekly') switchMobileTab('weekly');
 });
+
+<% if @syncing %>
+(function() {
+  var attempts = 0;
+  var maxAttempts = 24; // stop after ~2 min
+  var interval = setInterval(function() {
+    attempts++;
+    if (attempts > maxAttempts) { clearInterval(interval); return; }
+    fetch('<%= sync_status_path %>', { headers: { 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.syncing) {
+          clearInterval(interval);
+          window.location.reload();
+        }
+      })
+      .catch(function() { clearInterval(interval); });
+  }, 5000);
+})();
+<% end %>
 </script>
 
 <% else %>

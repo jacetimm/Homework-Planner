@@ -12,7 +12,10 @@ class FeatureFlags
   def basic?         = true
   def priority_tabs? = true
 
-  # 2nd visit
+  # 1st visit: simplified timeline (no stats, no legend, no collapse)
+  def simplified_timeline? = !timeline?
+
+  # 2nd visit: full timeline
   def timeline?      = show_all? || @s.visits_count.to_i >= 2
   def reestimate?    = show_all? || @s.visits_count.to_i >= 2
 

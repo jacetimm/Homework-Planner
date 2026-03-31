@@ -29,6 +29,10 @@ class ApplicationController < ActionController::Base
 
   private
 
+  def require_login
+    head :unauthorized unless current_user
+  end
+
   def reauthenticate(exception = nil)
     if current_user&.refresh_token.present?
       begin

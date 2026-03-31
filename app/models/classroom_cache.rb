@@ -1,7 +1,7 @@
 class ClassroomCache < ApplicationRecord
   belongs_to :user
 
-  CACHE_TTL = 15.minutes
+  CACHE_TTL = 5.minutes
 
   def fresh?
     synced_at.present? && synced_at > CACHE_TTL.ago

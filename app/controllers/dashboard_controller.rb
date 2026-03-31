@@ -56,4 +56,11 @@ class DashboardController < ApplicationController
     current_user.calendar_cache&.destroy
     redirect_to root_path, notice: "Syncing with Google Classroom…"
   end
+
+  def sync_status
+    return head :unauthorized unless current_user
+
+    cache = current_user.classroom_cache
+    render json: { syncing: cache.present? && !cache.fresh? }
+  end
 end
