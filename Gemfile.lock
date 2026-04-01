@@ -185,7 +185,9 @@ GEM
     mcp (0.8.0)
       json-schema (>= 4.1)
     mini_mime (1.1.5)
-    minitest (5.27.0)
+    minitest (6.0.3)
+      drb (~> 2.0)
+      prism (~> 1.5)
     msgpack (1.8.0)
     multi_json (1.19.1)
     multi_xml (0.8.1)
@@ -449,7 +451,7 @@ DEPENDENCIES
   google-apis-classroom_v1
   importmap-rails
   jbuilder
-  minitest (~> 5.25)
+  minitest (~> 6.0)
   oauth2 (~> 2.0)
   omniauth
   omniauth-google-oauth2
