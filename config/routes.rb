@@ -10,7 +10,8 @@ Rails.application.routes.draw do
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
 
   # Defines the root path route ("/")
-  root "dashboard#index"
+  root "pages#home"
+  get "/dashboard", to: "dashboard#index", as: :dashboard
   post "/sync", to: "dashboard#sync", as: :sync_dashboard
   get  "/sync/status", to: "dashboard#sync_status", as: :sync_status
   post "/onboarding/complete", to: "onboarding#complete", as: :complete_onboarding

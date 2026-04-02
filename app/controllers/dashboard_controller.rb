@@ -1,6 +1,6 @@
 class DashboardController < ApplicationController
   def index
-    return unless current_user
+    redirect_to root_path and return unless current_user
 
     # Track unique-day visits
     @user_setting = UserSetting.for_user(current_user)
