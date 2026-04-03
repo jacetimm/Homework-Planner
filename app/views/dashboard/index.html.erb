@@ -1128,40 +1128,40 @@
 
             <%# ── Won't Fit Tonight / Later warning ── %>
             <% if @schedule["wont_fit_tonight"]&.any? %>
-              <div class="rounded-2xl border border-rose-500/40 bg-rose-900/20 p-4">
+              <div class="rounded-2xl border border-rose-200 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-900/20 p-4">
                 <div class="flex items-center gap-2 mb-3">
-                  <svg class="w-4 h-4 text-rose-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                  <h4 class="text-xs font-bold uppercase tracking-widest text-rose-300">Won't Fit Tonight</h4>
-                  <span class="ml-auto text-[10px] font-bold text-rose-300/60"><%= @schedule["wont_fit_tonight"].size %> item<%= @schedule["wont_fit_tonight"].size == 1 ? "" : "s" %></span>
+                  <svg class="w-4 h-4 text-rose-500 dark:text-rose-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <h4 class="text-xs font-bold uppercase tracking-widest text-rose-700 dark:text-rose-300">Won't Fit Tonight</h4>
+                  <span class="ml-auto text-[10px] font-bold text-rose-400 dark:text-rose-300/60"><%= @schedule["wont_fit_tonight"].size %> item<%= @schedule["wont_fit_tonight"].size == 1 ? "" : "s" %></span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   <% @schedule["wont_fit_tonight"].each do |task| %>
-                    <div id="assignment_card_<%= task[:course_work_id] %>" class="relative group bg-black/20 rounded-xl p-3 border border-rose-500/20 flex flex-col gap-1.5">
+                    <div id="assignment_card_<%= task[:course_work_id] %>" class="relative group bg-white dark:bg-black/20 rounded-xl p-3 border border-rose-200 dark:border-rose-500/20 flex flex-col gap-1.5">
                       <%= button_to hidden_assignments_path(course_work_id: task[:course_work_id], course_name: task[:course], assignment_title: task[:title]),
                             method: :post,
                             form: { data: { turbo_confirm: "Hide this assignment? It won't show up anymore." }, class: "absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" },
-                            class: "text-white/40 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-1 transition cursor-pointer flex items-center justify-center",
+                            class: "text-slate-400 dark:text-white/40 hover:text-slate-700 dark:hover:text-white bg-black/5 dark:bg-black/20 hover:bg-black/10 dark:hover:bg-black/40 rounded-full p-1 transition cursor-pointer flex items-center justify-center",
                             title: "Hide Assignment" do %>
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       <% end %>
                       <div class="flex items-start justify-between gap-2">
-                        <p class="text-sm font-bold text-white truncate"><%= task[:title] %></p>
-                        <span class="text-[10px] font-bold text-rose-300 whitespace-nowrap"><%= format_minutes(task[:minutes]) %></span>
+                        <p class="text-sm font-bold text-slate-900 dark:text-white truncate"><%= task[:title] %></p>
+                        <span class="text-[10px] font-bold text-rose-600 dark:text-rose-300 whitespace-nowrap"><%= format_minutes(task[:minutes]) %></span>
                       </div>
                       <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-[10px] font-bold uppercase text-white/50 truncate"><%= task[:course] %></span>
-                        <span class="text-[10px] font-bold text-rose-400 border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">Due <%= Date.parse(task[:due_date]).strftime("%b %-d") %></span>
+                        <span class="text-[10px] font-bold uppercase text-slate-400 dark:text-white/50 truncate"><%= task[:course] %></span>
+                        <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">Due <%= Date.parse(task[:due_date]).strftime("%b %-d") %></span>
                       </div>
-                      <p class="text-[11px] text-rose-100/80">
+                      <p class="text-[11px] text-rose-500 dark:text-rose-100/80">
                         <%= task[:reason] %>
                         <% if task[:first_scheduled_date].present? %>
                           · first scheduled <%= Date.parse(task[:first_scheduled_date]).strftime("%a") %>
                         <% end %>
                       </p>
                       <% if task[:shortfall_minutes].to_i > 0 %>
-                        <p class="text-[10px] font-bold text-rose-300"><%= format_minutes(task[:shortfall_minutes]) %> still has no slot before the due date.</p>
+                        <p class="text-[10px] font-bold text-rose-600 dark:text-rose-300"><%= format_minutes(task[:shortfall_minutes]) %> still has no slot before the due date.</p>
                       <% end %>
                     </div>
                   <% end %>
