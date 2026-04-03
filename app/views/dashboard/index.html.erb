@@ -953,7 +953,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-extrabold text-rose-900 truncate"><%= a[:title] %></p>
                   <p class="text-xs font-semibold text-rose-700 mt-0.5">
-                    <% if dz_days == 0 %>Due today<% elsif dz_days == 1 %>Due tomorrow<% else %>Due in <%= dz_days %> days<% end %>
+                    <% if dz_days < 0 %>Overdue<% elsif dz_days == 0 %>Due today<% elsif dz_days == 1 %>Due tomorrow<% else %>Due in <%= dz_days %> days<% end %>
                     &middot; <%= format_minutes(a[:estimated_minutes]) %> &middot; <%= a[:class_name] || a[:course] %>
                   </p>
                   <p class="text-xs text-rose-600 mt-1">
@@ -999,35 +999,35 @@
         <% end %>
 
         <!-- Section 1: Tonight's Plan (desktop only — mobile sees priority tabs above) -->
-        <section class="hidden md:block bg-slate-900 rounded-3xl shadow-xl border border-slate-700/60 overflow-hidden">
+        <section class="hidden md:block bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl shadow-2xl border border-white/8 overflow-hidden">
 
           <!-- Plan header -->
-          <div class="px-6 sm:px-8 pt-6 pb-5 border-b border-slate-700/50">
-            <div class="flex items-center justify-between gap-4 mb-4">
+          <div class="px-6 sm:px-8 pt-6 pb-5 border-b border-white/6">
+            <div class="flex items-center justify-between gap-4">
               <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4.5 h-4.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1M4.22 4.22l.7.7m12.16 12.16.7.7M1 12h1m18 0h1M4.22 19.78l.7-.7M18.36 5.64l.7-.7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(99,102,241,0.3)]">
+                  <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                 </div>
                 <div>
                   <h3 class="text-lg font-extrabold text-white tracking-tight">Tonight's Plan</h3>
-                  <p class="text-slate-400 text-xs mt-0.5">Ranked by urgency, effort, and your calendar</p>
+                  <p class="text-slate-500 text-xs mt-0.5">Ranked by urgency, effort, and your calendar</p>
                 </div>
               </div>
 
               <% if @tonight_summary %>
                 <div class="flex items-center gap-2 flex-wrap justify-end">
-                  <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5">
-                    <span class="text-slate-400 text-xs">Workload</span>
+                  <div class="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-3 py-1.5">
+                    <span class="text-slate-500 text-[11px] font-medium">Workload</span>
                     <span class="text-white text-sm font-bold"><%= format_minutes(@tonight_summary[:total_minutes]) %></span>
-                    <span class="text-slate-600 text-xs">/</span>
-                    <span class="text-slate-400 text-xs">Free</span>
+                    <span class="w-px h-3 bg-white/10"></span>
+                    <span class="text-slate-500 text-[11px] font-medium">Free</span>
                     <span class="text-slate-300 text-sm font-bold"><%= format_minutes(@tonight_summary[:total_free_minutes]) %></span>
                   </div>
-                  <span class="text-xs font-bold px-3 py-1.5 rounded-xl border <%= @tonight_summary[:fits] ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-rose-500/15 border-rose-500/30 text-rose-300' %>">
-                    <%= @tonight_summary[:fits] ? "✓ Fits" : "⚠ Won't Fully Fit" %>
+                  <span class="text-xs font-bold px-3 py-1.5 rounded-xl border shadow-sm <%= @tonight_summary[:fits] ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300 shadow-emerald-900/30' : 'bg-rose-500/10 border-rose-500/25 text-rose-300 shadow-rose-900/30' %>">
+                    <%= @tonight_summary[:fits] ? "✓ Fits tonight" : "⚠ Won't fully fit" %>
                   </span>
                   <% if @tonight_summary[:pending_count].to_i > 0 %>
-                    <span class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-medium px-3 py-1.5 rounded-xl">
+                    <span class="flex items-center gap-1.5 bg-white/5 border border-white/8 text-slate-400 text-xs px-3 py-1.5 rounded-xl">
                       <svg class="w-3 h-3 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                       <%= @tonight_summary[:pending_count] %> estimating…
                     </span>
@@ -1060,11 +1060,11 @@
 
                 <%# ── Urgent ── %>
                 <% if urgent.any? %>
-                  <div class="rounded-2xl border border-rose-500/25 bg-rose-500/8 overflow-hidden">
-                    <div class="flex items-center gap-2.5 px-4 py-3 border-b border-rose-500/15">
-                      <div class="w-2 h-2 rounded-full bg-rose-400 animate-pulse flex-shrink-0"></div>
+                  <div class="rounded-2xl border border-rose-500/20 overflow-hidden" style="background: linear-gradient(135deg, rgba(239,68,68,0.07) 0%, rgba(15,23,42,0.6) 100%);">
+                    <div class="flex items-center gap-2.5 px-4 py-3 border-b border-rose-500/15" style="background: rgba(239,68,68,0.08);">
+                      <div class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse flex-shrink-0 shadow-[0_0_6px_rgba(248,113,113,0.8)]"></div>
                       <h4 class="text-xs font-bold uppercase tracking-widest text-rose-300 flex-1">Do First</h4>
-                      <span class="text-[10px] font-bold text-rose-300/50 tabular-nums"><%= urgent.size %> task<%= urgent.size == 1 ? "" : "s" %></span>
+                      <span class="text-[10px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/20 px-2 py-0.5 rounded-full tabular-nums"><%= urgent.size %></span>
                     </div>
                     <div class="p-3 max-h-[28rem] overflow-y-auto space-y-2">
                       <% urgent.each do |a| %>
@@ -1075,11 +1075,11 @@
                 <% end %>
 
                 <%# ── Needs Focus ── %>
-                <div class="rounded-2xl border border-amber-500/25 bg-amber-500/8 overflow-hidden">
-                  <div class="flex items-center gap-2.5 px-4 py-3 border-b border-amber-500/15">
-                    <div class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></div>
+                <div class="rounded-2xl border border-amber-500/20 overflow-hidden" style="background: linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(15,23,42,0.6) 100%);">
+                  <div class="flex items-center gap-2.5 px-4 py-3 border-b border-amber-500/15" style="background: rgba(245,158,11,0.08);">
+                    <div class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 shadow-[0_0_6px_rgba(251,191,36,0.7)]"></div>
                     <h4 class="text-xs font-bold uppercase tracking-widest text-amber-300 flex-1">Needs Focus</h4>
-                    <span class="text-[10px] font-bold text-amber-300/50 tabular-nums"><%= needs_focus.size %> task<%= needs_focus.size == 1 ? "" : "s" %></span>
+                    <span class="text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full tabular-nums"><%= needs_focus.size %></span>
                   </div>
                   <% if needs_focus.any? %>
                     <div class="p-3 max-h-[28rem] overflow-y-auto space-y-2">
@@ -1089,17 +1089,17 @@
                     </div>
                   <% else %>
                     <div class="px-4 py-6 text-center">
-                      <p class="text-sm text-white/40">Nothing here tonight.</p>
+                      <p class="text-sm text-white/30">Nothing here tonight.</p>
                     </div>
                   <% end %>
                 </div>
 
                 <%# ── Can Wait ── %>
-                <div class="rounded-2xl border border-emerald-500/25 bg-emerald-500/8 overflow-hidden">
-                  <div class="flex items-center gap-2.5 px-4 py-3 border-b border-emerald-500/15">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></div>
+                <div class="rounded-2xl border border-emerald-500/20 overflow-hidden" style="background: linear-gradient(135deg, rgba(16,185,129,0.07) 0%, rgba(15,23,42,0.6) 100%);">
+                  <div class="flex items-center gap-2.5 px-4 py-3 border-b border-emerald-500/15" style="background: rgba(16,185,129,0.08);">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.7)]"></div>
                     <h4 class="text-xs font-bold uppercase tracking-widest text-emerald-300 flex-1">Can Wait</h4>
-                    <span class="text-[10px] font-bold text-emerald-300/50 tabular-nums"><%= can_wait.size %> task<%= can_wait.size == 1 ? "" : "s" %></span>
+                    <span class="text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded-full tabular-nums"><%= can_wait.size %></span>
                   </div>
                   <% if can_wait.any? %>
                     <div class="p-3 max-h-[28rem] overflow-y-auto space-y-2">
@@ -1109,7 +1109,7 @@
                     </div>
                   <% else %>
                     <div class="px-4 py-6 text-center">
-                      <p class="text-sm text-white/40">Nothing here tonight.</p>
+                      <p class="text-sm text-white/30">Nothing here tonight.</p>
                     </div>
                   <% end %>
                 </div>
@@ -1118,11 +1118,11 @@
             <% end %>
             <% else %>
               <div class="py-16 text-center">
-                <div class="w-16 h-16 bg-emerald-500/15 border border-emerald-500/25 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(52,211,153,0.15)]" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.2);">
                   <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
                 <h4 class="text-white font-bold text-xl mb-1">You're clear for tonight!</h4>
-                <p class="text-slate-400 text-sm">No assignments scheduled. Enjoy your evening.</p>
+                <p class="text-slate-500 text-sm">No assignments scheduled. Enjoy your evening.</p>
               </div>
             <% end %>
 
