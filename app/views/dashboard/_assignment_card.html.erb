@@ -4,12 +4,12 @@
   due_date_obj = Date.parse(a[:due_date]) rescue nil
   days_left = due_date_obj ? (due_date_obj - Date.current).to_i : nil
 %>
-<div id="assignment_card_<%= a[:course_work_id] %>" class="relative group rounded-xl border <%= accent_border %> <%= is_danger ? 'ring-1 ring-rose-500/50' : '' %> bg-white/6 hover:bg-white/9 transition p-3">
+<div id="assignment_card_<%= a[:course_work_id] %>" class="relative group rounded-xl border <%= accent_border %> <%= is_danger ? 'ring-1 ring-rose-400/40' : '' %> bg-white/60 dark:bg-white/6 hover:bg-white/90 dark:hover:bg-white/9 transition p-3">
 
   <%= button_to hidden_assignments_path(course_work_id: a[:course_work_id], course_name: a[:course], assignment_title: a[:title]),
         method: :post,
         form: { data: { turbo_confirm: "Hide this assignment? It won't show up anymore." }, class: "absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" },
-        class: "text-white/30 hover:text-white bg-black/20 hover:bg-black/50 rounded-full p-1 transition cursor-pointer flex items-center justify-center",
+        class: "text-slate-400 dark:text-white/30 hover:text-slate-700 dark:hover:text-white bg-black/5 dark:bg-black/20 hover:bg-black/10 dark:hover:bg-black/50 rounded-full p-1 transition cursor-pointer flex items-center justify-center",
         title: "Hide Assignment" do %>
     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -18,9 +18,9 @@
 
   <!-- Danger zone warning -->
   <% if is_danger %>
-    <div class="flex items-center gap-1.5 mb-2 bg-rose-500/15 border border-rose-500/25 rounded-lg px-2 py-1">
-      <svg class="w-3 h-3 text-rose-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-      <p class="text-[10px] font-bold text-rose-300">
+    <div class="flex items-center gap-1.5 mb-2 bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/25 rounded-lg px-2 py-1">
+      <svg class="w-3 h-3 text-rose-500 dark:text-rose-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+      <p class="text-[10px] font-bold text-rose-600 dark:text-rose-300">
         <%= days_left && days_left < 0 ? "Overdue" : days_left == 0 ? "Due today" : days_left == 1 ? "Due tomorrow" : "Due in #{days_left} days" %> &middot; don't wait
       </p>
     </div>
@@ -28,8 +28,8 @@
 
   <!-- Title + time -->
   <div class="flex items-start justify-between gap-2 mb-1.5">
-    <a href="<%= a[:assignment_link] %>" target="_blank" rel="noopener" class="flex-1 min-w-0 hover:opacity-80 transition">
-      <p class="text-sm font-bold text-white leading-snug line-clamp-2"><%= a[:title] %></p>
+    <a href="<%= a[:assignment_link] %>" target="_blank" rel="noopener" class="flex-1 min-w-0 hover:opacity-70 transition">
+      <p class="text-sm font-bold text-slate-900 dark:text-white leading-snug line-clamp-2"><%= a[:title] %></p>
     </a>
     <span class="flex items-center gap-1 flex-shrink-0 mt-0.5">
       <% if a[:estimate_source] == :pending %>
@@ -39,12 +39,12 @@
         </svg>
         <span class="text-xs font-bold text-slate-400">~<%= format_minutes(a[:minutes]) %></span>
       <% else %>
-        <span class="text-xs font-bold text-white/90"><%= format_minutes(a[:minutes]) %></span>
+        <span class="text-xs font-bold text-slate-700 dark:text-white/90"><%= format_minutes(a[:minutes]) %></span>
         <% if @flags&.calibration? %>
           <% if a[:estimate_source] == :manual %>
-            <span class="text-[9px] font-extrabold uppercase tracking-wide text-sky-300 border border-sky-500/30 bg-sky-500/10 px-1 rounded leading-4">Manual</span>
+            <span class="text-[9px] font-extrabold uppercase tracking-wide text-sky-600 dark:text-sky-300 border border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-1 rounded leading-4">Manual</span>
           <% else %>
-            <span class="text-[9px] font-extrabold uppercase tracking-wide text-violet-300 border border-violet-500/30 bg-violet-500/10 px-1 rounded leading-4">AI</span>
+            <span class="text-[9px] font-extrabold uppercase tracking-wide text-violet-600 dark:text-violet-300 border border-violet-300 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-1 rounded leading-4">AI</span>
           <% end %>
         <% end %>
       <% end %>
@@ -55,16 +55,16 @@
   <div class="flex flex-wrap items-center gap-1.5">
     <span class="text-[10px] font-bold uppercase tracking-wide <%= accent_text %> truncate max-w-[9rem]"><%= a[:course] %></span>
     <% if a[:no_due_date] %>
-      <span class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-white/35">No due date</span>
+      <span class="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-white/35">No due date</span>
     <% else %>
-      <span class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 <%= due_text %>">Due <%= format_due_date(Date.parse(a[:due_date])) %></span>
+      <span class="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 <%= due_text %>">Due <%= format_due_date(Date.parse(a[:due_date])) %></span>
     <% end %>
     <% if a[:urgency] == "overdue" %>
-      <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border bg-rose-500/25 text-rose-300 border-rose-400/30">Overdue</span>
+      <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border bg-rose-50 dark:bg-rose-500/25 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-400/30">Overdue</span>
     <% end %>
     <% if @flags&.crunch_mode? %>
       <button
-        class="crunch-btn ml-auto text-[10px] font-extrabold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded-lg <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white border border-rose-400 animate-pulse' : 'bg-violet-500/30 hover:bg-violet-500/50 text-violet-200 border border-violet-400/40' %> transition cursor-pointer flex items-center gap-1 whitespace-nowrap"
+        class="crunch-btn ml-auto text-[10px] font-extrabold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded-lg <%= is_danger ? 'bg-rose-500 hover:bg-rose-400 text-white border border-rose-400 animate-pulse' : 'bg-violet-100 dark:bg-violet-500/30 hover:bg-violet-200 dark:hover:bg-violet-500/50 text-violet-700 dark:text-violet-200 border border-violet-300 dark:border-violet-400/40' %> transition cursor-pointer flex items-center gap-1 whitespace-nowrap"
         data-course-work-id="<%= a[:course_work_id] %>"
         data-title="<%= CGI.escapeHTML(a[:title].to_s) %>"
         data-course="<%= CGI.escapeHTML(a[:course].to_s) %>"
@@ -78,18 +78,18 @@
   <!-- Night-by-night split plan -->
   <% if @flags&.split_view? && a[:split_plan]&.size.to_i > 1 %>
     <div class="mt-2 flex flex-wrap gap-1 items-center">
-      <span class="text-[10px] text-white/40 font-semibold mr-0.5">Split:</span>
+      <span class="text-[10px] text-slate-400 dark:text-white/40 font-semibold mr-0.5">Split:</span>
       <% a[:split_plan].each_with_index do |chunk, i| %>
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded <%= i == 0 ? 'bg-white/18 text-white border border-white/25' : 'bg-white/8 text-white/60 border border-white/12' %>"><%= chunk[:day_abbr] %>: <%= format_minutes(chunk[:minutes]) %></span>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded <%= i == 0 ? 'bg-slate-800 dark:bg-white/18 text-white dark:text-white border border-slate-700 dark:border-white/25' : 'bg-slate-100 dark:bg-white/8 text-slate-600 dark:text-white/60 border border-slate-200 dark:border-white/12' %>"><%= chunk[:day_abbr] %>: <%= format_minutes(chunk[:minutes]) %></span>
       <% end %>
     </div>
   <% end %>
   <% if a[:no_buffer_day] %>
-    <p class="mt-1.5 text-[10px] font-semibold text-amber-300/80">No buffer day — don't fall behind!</p>
+    <p class="mt-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300/80">No buffer day — don't fall behind!</p>
   <% end %>
 
   <!-- Actions row -->
-  <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 pt-2 border-t border-white/8">
+  <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 pt-2 border-t border-slate-200 dark:border-white/8">
     <% if @flags&.reestimate? %>
     <div class="flex items-center gap-1.5 min-w-0">
       <%= button_to "↺ Re-estimate",
@@ -98,16 +98,16 @@
         data: { turbo: false },
         disabled: a[:reestimate_disabled],
         title: "#{a[:reestimate_tooltip]} #{a[:daily_reestimates_left] || AssignmentReestimate::DAILY_LIMIT}/#{a[:daily_reestimates_limit] || AssignmentReestimate::DAILY_LIMIT} left today".strip,
-        class: "text-[10px] font-bold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded border transition #{a[:reestimate_disabled] ? 'border-white/8 text-white/20 bg-white/4 cursor-not-allowed' : 'border-white/15 text-white/55 bg-white/8 hover:bg-white/14 hover:text-white cursor-pointer'}" %>
+        class: "text-[10px] font-bold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded border transition #{a[:reestimate_disabled] ? 'border-slate-200 dark:border-white/8 text-slate-300 dark:text-white/20 bg-slate-50 dark:bg-white/4 cursor-not-allowed' : 'border-slate-300 dark:border-white/15 text-slate-500 dark:text-white/55 bg-slate-50 dark:bg-white/8 hover:bg-slate-100 dark:hover:bg-white/14 hover:text-slate-700 dark:hover:text-white cursor-pointer'}" %>
     </div>
     <% end %>
 
     <form action="<%= set_assignment_estimate_path(a[:course_work_id]) %>" method="post" data-turbo="false" class="flex items-center gap-1.5">
       <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-      <span class="text-[10px] text-white/40 font-semibold">My est</span>
+      <span class="text-[10px] text-slate-400 dark:text-white/40 font-semibold">My est</span>
       <input type="text" name="minutes" value="<%= format_minutes(a[:full_assignment_minutes]) %>" placeholder="3h 45m"
-             class="text-[11px] w-18 bg-white/8 border border-white/15 rounded px-1.5 py-0.5 text-white text-center focus:outline-none focus:border-white/40 focus:bg-white/12">
-      <button type="submit" class="text-[10px] font-bold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded border border-white/15 text-white/55 bg-white/8 hover:bg-white/14 hover:text-white transition cursor-pointer">Set</button>
+             class="text-[11px] w-18 bg-slate-50 dark:bg-white/8 border border-slate-300 dark:border-white/15 rounded px-1.5 py-0.5 text-slate-700 dark:text-white text-center focus:outline-none focus:border-indigo-400 dark:focus:border-white/40 focus:bg-white dark:focus:bg-white/12">
+      <button type="submit" class="text-[10px] font-bold px-3 py-2 sm:px-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded border border-slate-300 dark:border-white/15 text-slate-500 dark:text-white/55 bg-slate-50 dark:bg-white/8 hover:bg-slate-100 dark:hover:bg-white/14 hover:text-slate-700 dark:hover:text-white transition cursor-pointer">Set</button>
     </form>
   </div>
 
