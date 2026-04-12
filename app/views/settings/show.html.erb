@@ -161,10 +161,10 @@
               <div class="mt-3">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Days</label>
                 <input type="hidden" name="user_setting[extracurricular_blocks][<%= index %>][days]" value="<%= days_value %>" class="days-hidden-input" id="days_<%= index %>">
-                <div class="flex flex-wrap gap-1.5 day-pill-group" data-target="days_<%= index %>">
+                <div class="flex flex-nowrap gap-1 overflow-x-auto day-pill-group" data-target="days_<%= index %>">
                   <% %w[Mon Tue Wed Thu Fri Sat Sun].each do |d| %>
                     <% active = existing_days.map { |x| x[0,3].downcase }.include?(d.downcase) %>
-                    <button type="button" onclick="toggleDayPill(this)" data-day="<%= d %>" class="day-pill px-3 py-1 rounded-lg text-xs font-bold border transition <%= active ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-500 border-slate-300 hover:border-indigo-400 hover:text-indigo-600' %>"><%= d %></button>
+                    <button type="button" onclick="toggleDayPill(this)" data-day="<%= d %>" class="day-pill flex-shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition <%= active ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-500 border-slate-300 hover:border-indigo-400 hover:text-indigo-600' %>"><%= d %></button>
                   <% end %>
                 </div>
               </div>
@@ -428,7 +428,7 @@
   }
 
   function pillsHtml(index) {
-    return DAYS.map(d => `<button type="button" onclick="toggleDayPill(this)" data-day="${d}" class="day-pill px-3 py-1 rounded-lg text-xs font-bold border transition bg-white text-slate-500 border-slate-300 hover:border-indigo-400 hover:text-indigo-600">${d}</button>`).join('');
+    return DAYS.map(d => `<button type="button" onclick="toggleDayPill(this)" data-day="${d}" class="day-pill flex-shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition bg-white text-slate-500 border-slate-300 hover:border-indigo-400 hover:text-indigo-600">${d}</button>`).join('');
   }
 
   function addExtracurricularRow() {
@@ -455,7 +455,7 @@
         <div class="mt-3">
           <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Days</label>
           <input type="hidden" name="user_setting[extracurricular_blocks][${extraIndex}][days]" value="" id="days_${extraIndex}">
-          <div class="flex flex-wrap gap-1.5 day-pill-group" data-target="days_${extraIndex}">
+          <div class="flex flex-nowrap gap-1 overflow-x-auto day-pill-group" data-target="days_${extraIndex}">
             ${pillsHtml(extraIndex)}
           </div>
         </div>

@@ -9,12 +9,12 @@ class OnboardingController < ApplicationController
 
     if params[:break_frequency].present?
       val = params[:break_frequency].to_i
-      setting.break_frequency = val if val.in?(10..120)
+      setting.break_frequency = val if val.in?(5..240)
     end
 
     if params[:break_duration].present?
       val = params[:break_duration].to_i
-      setting.break_duration = val if val.in?(1..30)
+      setting.break_duration = val if val.in?(1..120)
     end
 
     if params[:max_minutes_per_subject].present?

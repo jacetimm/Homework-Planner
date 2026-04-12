@@ -2,8 +2,8 @@ class UserSetting < ApplicationRecord
   belongs_to :user, optional: true
 
   validates :user_email, presence: true, uniqueness: true
-  validates :break_frequency, numericality: { only_integer: true, in: 10..120 }, allow_nil: true
-  validates :break_duration,  numericality: { only_integer: true, in: 1..30 },   allow_nil: true
+  validates :break_frequency, numericality: { only_integer: true, in: 5..240 }, allow_nil: true
+  validates :break_duration,  numericality: { only_integer: true, in: 1..120 }, allow_nil: true
   validates :max_minutes_per_subject, numericality: { only_integer: true, in: 15..180 }, allow_nil: true
   validate  :study_window_valid
 

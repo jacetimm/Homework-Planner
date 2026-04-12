@@ -39,6 +39,47 @@
       </div>
 
       <div class="px-8 py-7">
+        <h2 class="text-base font-extrabold text-slate-900 mb-2">Data Protection &amp; Security</h2>
+
+        <div class="space-y-5 text-sm text-slate-600 leading-relaxed">
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Encryption in Transit</p>
+            <p>All data transmitted between your browser and this app is encrypted using HTTPS/TLS. We do not serve any content over unencrypted HTTP.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Encryption at Rest</p>
+            <p>Your Google OAuth access and refresh tokens are encrypted at rest in our database using Rails built-in encryption (ActiveRecord Encryption). API keys and secrets are stored using Rails encrypted credentials and are never stored in plaintext or version control.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Access Controls</p>
+            <p>Our server is a privately hosted Raspberry Pi accessible only to the developer. No third parties have access to the server or database. Database credentials and server access are protected by SSH key authentication.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Data Minimization</p>
+            <p>We only request Google API scopes strictly necessary for app functionality: reading your courses, assignments, submissions, and calendar. We do not request access to Google Drive, Gmail, or any other Google services.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Data Retention</p>
+            <p>Cached assignment and calendar data is stored temporarily (up to 15 minutes) to reduce API calls. Study session data and AI time estimates are retained to improve your personal scheduling accuracy. You may request deletion of all your data at any time by contacting us.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Third-Party AI Processing</p>
+            <p>Assignment titles, descriptions, and due dates are sent to Groq (<a href="https://groq.com" class="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors" target="_blank" rel="noopener">groq.com</a>) solely to generate time estimates. No personally identifiable information (name, email, school) is included in these requests. Groq's privacy policy applies to this processing.</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-slate-800 mb-1">Deletion Requests</p>
+            <p>To request deletion of your account and all associated data, contact us at the email below. We will process deletion requests within 30 days.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-8 py-7">
         <h2 class="text-base font-extrabold text-slate-900 mb-2">Contact</h2>
         <p class="text-sm text-slate-600 leading-relaxed">Questions? Email <a href="mailto:jacetimm@gmail.com" class="font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">jacetimm@gmail.com</a>.</p>
       </div>
