@@ -1,0 +1,11 @@
+one:
+  email: fixture_user_one@example.com
+  google_uid: fixture_uid_one
+  access_token: fake_token
+  refresh_token: fake_refresh
+
+two:
+  email: fixture_user_two@example.com
+  google_uid: fixture_uid_two
+  access_token: fake_token_2
+  refresh_token: fake_refresh_2

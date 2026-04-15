@@ -360,7 +360,7 @@ class HomeworkScheduler
 
     loop do
       break if current_m >= end_m
-      break if queue.empty? && extra_blocks.none? { |b| b[:start_m] >= current_m }
+      break if queue.empty? && extra_blocks.none? { |b| b[:start_m] >= current_m } && !(@break_frequency > 0 && study_accum >= @break_frequency)
 
       # Consume any active extracurricular/calendar block
       active = extra_blocks.find { |b| b[:start_m] <= current_m && b[:end_m] > current_m }
@@ -372,7 +372,7 @@ class HomeworkScheduler
         next
       end
 
-      break if queue.empty?
+      break if queue.empty? && !(@break_frequency > 0 && study_accum >= @break_frequency)
 
       # Insert break if due
       if @break_frequency > 0 && study_accum >= @break_frequency

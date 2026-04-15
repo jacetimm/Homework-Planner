@@ -65,7 +65,7 @@ class CalendarService
         summary     = event.summary.to_s.strip
 
         next if ignored.any? { |keyword| summary.downcase.include?(keyword) }
-        next if ignore_rules.any? { |rule| ignore_rule_match?(rule, summary, calendar[:id]) }
+        next if ignore_rules.any? { |rule| ignore_rule_match?(rule, summary, calendar[:summary], calendar[:id]) }
 
         if event_end > event_start
           clamped_start = [ event_start, window_start, Time.current ].max
@@ -108,8 +108,11 @@ class CalendarService
     end
   end
 
-  def ignore_rule_match?(rule, summary, calendar_id)
-    return false unless summary.to_s.downcase.include?(rule[:keyword])
+  def ignore_rule_match?(rule, summary, calendar_name, calendar_id)
+    keyword = rule[:keyword].to_s
+    haystacks = [summary, calendar_name].map { |value| value.to_s.downcase }
+
+    return false unless haystacks.any? { |value| value.include?(keyword) }
     return true if rule[:calendar_id].blank?
 
     rule[:calendar_id] == calendar_id.to_s

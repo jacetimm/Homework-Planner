@@ -11,14 +11,22 @@ class RackAttackTest < ActionDispatch::IntegrationTest
   EXTERNAL_IP = "203.0.113.42"   # TEST-NET-3; never a real user's IP
   ENV_OVERRIDES = { "REMOTE_ADDR" => EXTERNAL_IP }.freeze
 
+  MOCK_AUTH = OmniAuth::AuthHash.new(
+    uid:         "throttle_test_uid",
+    info:        { email: "throttle@example.com", name: "Throttle Test", image: nil },
+    credentials: { token: "fake_token", refresh_token: "fake_refresh", expires_at: nil }
+  )
+
   setup do
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
     Rack::Attack.reset!
+    OmniAuth.config.mock_auth[:google_oauth2] = MOCK_AUTH
   end
 
   teardown do
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
     Rack::Attack.reset!
+    OmniAuth.config.mock_auth.delete(:google_oauth2)
   end
 
   # ── General IP throttle (60 req/min) ─────────────────────────────────────

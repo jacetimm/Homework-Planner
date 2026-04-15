@@ -1352,6 +1352,8 @@
           _available    = @tonight_summary[:tonight_capacity].to_i
           _needed       = @tonight_summary[:total_minutes].to_i
           _overflow     = @schedule["wont_fit"]&.any?
+          _full_timeline = @flags&.timeline?
+          _timeline_preview = _full_timeline ? _timeline : _timeline.first(5)
         %>
         <% if (@flags&.timeline? || @flags&.simplified_timeline?) && _timeline.any? %>
         <section id="desktop-timeline-section" class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1364,7 +1366,7 @@
               </div>
               <h3 class="text-lg font-bold text-slate-900 tracking-tight">Tonight's Timeline</h3>
             </div>
-            <% if @flags&.timeline? %>
+            <% if _full_timeline %>
             <div class="flex items-center gap-2 flex-wrap">
               <div class="hidden sm:flex flex-wrap gap-2.5 text-[11px] font-semibold text-slate-400">
                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>Urgent</span>
@@ -1379,7 +1381,7 @@
             <% end %>
           </div>
 
-          <% if @flags&.timeline? %>
+          <% if _full_timeline %>
           <!-- Summary card -->
           <div class="px-6 pt-4 pb-0">
             <div class="rounded-2xl border <%= _overflow ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50' %> px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
@@ -1412,6 +1414,7 @@
 
           <!-- Condensed timeline rows -->
           <div id="timeline-body" class="px-3 sm:px-6 py-4">
+            <% if _full_timeline %>
             <div class="divide-y divide-slate-100">
               <% _timeline.each do |block| %>
                 <%
@@ -1449,7 +1452,7 @@
                   <!-- Dot -->
                   <span class="w-2.5 h-2.5 rounded-full <%= dot %> flex-shrink-0 ring-2 ring-white shadow-sm"></span>
                   <!-- Label -->
-                  <% if @flags&.timeline? && block[:type] == "quick_tasks" %>
+                  <% if _full_timeline && block[:type] == "quick_tasks" %>
                     <details class="flex-1 group/details">
                       <summary class="list-none cursor-pointer">
                         <div class="flex items-center gap-3 min-w-0">
@@ -1478,17 +1481,17 @@
                         </div>
                       </div>
                     </details>
-                  <% elsif @flags&.timeline? && block[:type] == "study" && block[:link].present? %>
+                  <% elsif _full_timeline && block[:type] == "study" && block[:link].present? %>
                     <a href="<%= block[:link] %>" target="_blank" rel="noopener" class="text-sm font-semibold <%= row_text %> truncate flex-1 hover:text-indigo-600 transition-colors"><%= label %></a>
                   <% else %>
                     <span class="text-sm font-semibold <%= row_text %> truncate flex-1"><%= label %></span>
                   <% end %>
                   <!-- Sub-label (course / type) — full mode only -->
-                  <% if @flags&.timeline? && sub.present? && block[:type] != "quick_tasks" %>
+                  <% if _full_timeline && sub.present? && block[:type] != "quick_tasks" %>
                     <span class="text-[11px] font-medium <%= sub_text %> hidden sm:block flex-shrink-0 truncate max-w-[8rem]"><%= sub %></span>
                   <% end %>
                   <!-- Duration -->
-                  <% unless @flags&.timeline? && block[:type] == "quick_tasks" %>
+                  <% unless _full_timeline && block[:type] == "quick_tasks" %>
                     <span class="text-[11px] font-bold text-slate-500 flex-shrink-0 tabular-nums"><%= format_minutes(duration) %></span>
                   <% end %>
                 </div>
@@ -1502,6 +1505,35 @@
                 </div>
               </div>
             </div>
+            <% else %>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/60 overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-200/80">
+                <p class="text-sm font-semibold text-slate-900">Next blocks tonight</p>
+                <p class="text-xs text-slate-500 mt-1">A simple preview of what your evening looks like.</p>
+              </div>
+              <div class="divide-y divide-slate-200/80">
+                <% _timeline_preview.each do |block| %>
+                  <%
+                    time_range = "#{minutes_to_time(block[:start_m])} – #{minutes_to_time(block[:end_m])}"
+                    simple_label =
+                      case block[:type]
+                      when "break" then "Break"
+                      else block[:label].to_s
+                      end
+                  %>
+                  <div class="px-4 py-3">
+                    <p class="text-xs font-mono text-slate-400 tabular-nums"><%= time_range %></p>
+                    <p class="text-sm font-semibold text-slate-800 mt-1 truncate"><%= simple_label %></p>
+                  </div>
+                <% end %>
+              </div>
+              <% if _timeline.size > _timeline_preview.size %>
+                <div class="px-4 py-3 border-t border-slate-200/80 bg-white/80">
+                  <p class="text-xs font-medium text-slate-500">Showing the first <%= _timeline_preview.size %> blocks.</p>
+                </div>
+              <% end %>
+            </div>
+            <% end %>
           </div>
         </section>
         <% end %>

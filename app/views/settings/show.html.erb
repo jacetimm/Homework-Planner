@@ -227,7 +227,7 @@
             <div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
               <div>
                 <label class="block text-sm font-bold text-slate-700">Ignore Rules</label>
-                <p class="text-xs text-slate-500 mt-0.5">Match a keyword and choose which calendar the rule applies to.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Match a keyword in the event title or calendar name, then choose which calendar the rule applies to.</p>
               </div>
               <button type="button" onclick="addCalendarIgnoreRule()" class="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold border border-indigo-100 hover:bg-indigo-100 transition flex-shrink-0">
                 + Add Rule
@@ -257,7 +257,7 @@
                 </div>
               <% end %>
             </div>
-            <p class="text-xs text-slate-400 mt-2">Example: keyword <code class="bg-slate-100 px-1 rounded">dentist</code> on <em>Any Calendar</em> ignores all events with that word.</p>
+            <p class="text-xs text-slate-400 mt-2">Example: keyword <code class="bg-slate-100 px-1 rounded">dentist</code> on <em>Any Calendar</em> ignores events with that word in the title, or on a calendar with that word in its name.</p>
           </div>
           </div><%# end calendar-blocking-details %>
         </div>
